@@ -1,37 +1,63 @@
-# Create a GitHub Action Using TypeScript
+# AWS Run Shell Script
 
-![Linter](https://github.com/actions/typescript-action/actions/workflows/linter.yml/badge.svg)
-![CI](https://github.com/actions/typescript-action/actions/workflows/ci.yml/badge.svg)
-![Check dist/](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml/badge.svg)
-![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)
+![Linter](https://github.com/hisapy/aws-run-shell-script/actions/workflows/linter.yml/badge.svg)
+![CI](https://github.com/hisapy/aws-run-shell-script/actions/workflows/ci.yml/badge.svg)
+![Check dist/](https://github.com/hisapy/aws-run-shell-script/actions/workflows/check-dist.yml/badge.svg)
+![CodeQL](https://github.com/hisapy/aws-run-shell-script/actions/workflows/codeql-analysis.yml/badge.svg)
 ![Coverage](./badges/coverage.svg)
 
-Use this template to bootstrap the creation of a TypeScript action. :rocket:
+Use this GitHub Action to run a shell script in a AWS managed instance and wait
+for the result and output.
 
-This template includes compilation support, tests, a validation workflow,
-publishing, and versioning guidance.
+Internally, this calls AWS Systems Manger (SSM) SendCommand using the
+"AWS-RunShellScript" SSM document.
 
-If you are new, there's also a simpler introduction in the
-[Hello world JavaScript action repository](https://github.com/actions/hello-world-javascript-action).
+> NOTICE: Only tested in AL2023 AMI.
 
-## Create Your Own Action
+TODO:
 
-To create your own action, you can use this repository as a template! Just
-follow the below instructions:
+- Maybe support more options from AWS SSM SendCommand
+- Maybe support multiple instances
+- Improve testing for different/similar AMIs
 
-1. Click the **Use this template** button at the top of the repository
-1. Select **Create a new repository**
-1. Select an owner and name for your new repository
-1. Click **Create repository**
-1. Clone your new repository
+## Usage
 
-> [!IMPORTANT]
->
-> Make sure to remove or update the [`CODEOWNERS`](./CODEOWNERS) file! For
-> details on how to use this file, see
-> [About code owners](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).
+Prequisites:
 
-## Initial Setup
+- SSM Agent installed in the instance
+- A Role with permissions to execute shell commands via the `AWS-RunShellScript`
+  attached to the instance, e.g.,
+  `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore` ``
+
+The in your GitHub Actions workflow:
+
+```yaml
+name: Deploy
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy Webapp
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v5.0.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Pull repo
+        uses: hisapy/aws-run-shell-script@v0.0.1
+        with:
+          instance_id: ${{ inputs.instance_id }}
+          user: 'ec2-user'
+          command: "cd ~/webapp && git pull origin main'"
+          comment: 'Git pull repository'
+```
+
+## Development
 
 After you've cloned the repository to your local machine or codespace, you'll
 need to perform some initial setup steps before you can develop your action.

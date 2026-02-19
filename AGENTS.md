@@ -1,4 +1,4 @@
-# Copilot Instructions
+# # AWS Run Shell Script - Agent Instructions
 
 This GitHub Action is written in TypeScript and transpiled to JavaScript. Both
 the TypeScript sources and the **generated** JavaScript code are contained in
@@ -38,6 +38,50 @@ it is generated from.
 | `rollup.config.ts`   | Rollup Bundler Configuration                             |
 | `tsconfig.json`      | TypeScript Configuration                                 |
 
+## Code Style
+
+**Formatting & Linting:**
+
+- [Prettier](.prettierrc.yml): 2-space indentation, 80-character line width, no
+  semicolons, single quotes, LF line endings
+- [ESLint](eslint.config.mjs): Flat config format using `@typescript-eslint`,
+  Jest plugins, and integrated Prettier
+- [TypeScript](tsconfig.json): Strict mode enabled (`noImplicitAny`,
+  `strictNullChecks`), ES2022 target/lib, inline type annotations
+
+**Code Patterns:**
+
+- JSDoc comments document _why_, not _what_—see [src/main.ts](src/main.ts#L5-L9)
+  for examples
+- Error handling checks `instanceof Error` before accessing message property
+  (e.g., [src/main.ts](src/main.ts#L20))
+- Use `/* istanbul ignore next */` to exclude uncoverable entrypoint code from
+  coverage reports
+- Imports use `.js` extensions despite TypeScript source files for proper ESM
+  module resolution
+
+## Architecture
+
+**Module Structure:**
+
+- [src/index.ts](src/index.ts): Minimal entrypoint—imports and executes `run()`
+  immediately
+- [src/main.ts](src/main.ts): Core action logic using `@actions/core` for
+  inputs, outputs, and logging
+- [src/wait.ts](src/wait.ts): Utility functions demonstrating async/Promise
+  patterns with validation
+- Single responsibility: one primary export per file
+
+**Action Integration:**
+
+- Inputs retrieved via `core.getInput(name)` (see [action.yml](action.yml) for
+  metadata)
+- Outputs set via `core.setOutput(name, value)` for workflow consumption
+- Error handling wraps execution in try-catch, calls `core.setFailed(message)`
+  on failure
+- Debug logging via `core.debug(message)` only outputs when `ACTIONS_STEP_DEBUG`
+  secret is enabled
+
 ## Environment Setup
 
 Install dependencies by running:
@@ -45,6 +89,9 @@ Install dependencies by running:
 ```bash
 npm install
 ```
+
+For Node.js version requirement, see [.node-version](.node-version) (currently
+Node 24+).
 
 ## Testing
 
@@ -54,17 +101,57 @@ Ensure all unit tests pass by running:
 npm run test
 ```
 
-Unit tests should exist in the `__tests__` directory. They are powered by
-`jest`. Fixtures should be placed in the `__fixtures__` directory.
+**Test Structure:**
+
+- Unit tests in [**tests**/](../__tests__/) directory, powered by `jest` with
+  `ts-jest` preset
+- Test fixtures in [**fixtures**/](../__fixtures__/) provide Jest mocks matching
+  actual API signatures
+- ESM support enabled via `extensionsToTreatAsEsm: ['.ts']` in
+  [jest.config.js](jest.config.js)
+
+**Mock & Fixture Pattern:**
+
+- Fixtures export `jest.fn<typeof actualModule>()` matching real function
+  signatures (see [**fixtures**/core.ts](__fixtures__/core.ts))
+- Mocks instantiated before importing test module using
+  `jest.unstable_mockModule()`
+- Setup uses `.mockImplementation()`, teardown calls `jest.resetAllMocks()`
+- Tests verify both success paths (output assertions) and error paths
+  (rejection/failure status)
+- Example: [**tests**/wait.test.ts](__tests__/wait.test.ts) validates timing
+  behavior with delta assertions
+
+**Coverage Requirements:**
+
+- Coverage reports collected in `lcov` and `json-summary` formats
+- Run `npm run test -- --coverage` to generate detailed coverage reports
 
 ## Bundling
 
-Any time files in the `src` directory are changed, you should run the following
-command to bundle the TypeScript code into JavaScript:
+Any time files in the `src` directory are changed, run:
 
 ```bash
 npm run bundle
 ```
+
+**Build Details:**
+
+- [rollup.config.ts](rollup.config.ts) transpiles `src/index.ts` →
+  `dist/index.js` using TypeScript plugin
+- Output is ES module format with sourcemaps enabled
+- Node builtin resolution and CommonJS conversion plugins included
+- The `dist/` directory is committed to the repository (pre-transpiled for
+  GitHub Actions runtime)
+- CI verifies `dist/` stays in-sync with `src/`; ensure you commit transpiled
+  output
+
+**Build Commands:**
+
+- `npm run bundle`: Full build (format → lint → test → coverage → transpile)
+- `npm run package`: Rollup bundling only
+- `npm run package:watch`: Watch mode for development
+- `npm run all`: Complete verification workflow
 
 ## General Coding Guidelines
 
@@ -90,10 +177,33 @@ npm run bundle
 - When writing unit tests, try to consider edge cases as well as the main path
   of success. This will help ensure that the code is robust and can handle
   unexpected inputs or situations
-- Use the `@actions/core` package for logging over `console` to ensure
-  compatibility with GitHub Actions logging features
+- Use `@actions/core` for logging (`core.debug()`, `core.notice()`,
+  `core.warning()`) instead of `console` to ensure compatibility with GitHub
+  Actions logging features
+- Always check `instanceof Error` before accessing `.message` property in error
+  handlers
 
-### Versioning
+## Development Workflow
+
+**Local Development:**
+
+- Dev container ships with Node 20 in image but [.node-version](.node-version)
+  specifies Node 24
+- Test action locally using `npm run local-action` with `.env` configuration
+  (see [.env.example](.env.example))
+- Use `npm run ci-test` for CI-specific testing with experimental VM modules
+  flag
+- Enable format-on-save in VS Code for automatic Prettier formatting
+
+**Workflow:**
+
+1. Make changes in `src/` directory
+2. Run tests: `npm run test`
+3. Verify bundling: `npm run bundle`
+4. Let CI check that `dist/` is up-to-date
+5. Commit both `src/` changes AND transpiled `dist/` output
+
+## Versioning
 
 GitHub Actions are versioned using branch and tag names. Please ensure the
 version in the project's `package.json` is updated to reflect the changes made

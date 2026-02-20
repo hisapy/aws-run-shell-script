@@ -21,7 +21,9 @@ inputs:
 
 outputs:
   command_output:
-    description: The output of the command executed on the instance
+    description: The output of the command executed in the instance
+  command_status:
+    description: The status of the command executed in the instance
 
 runs:
   using: node24

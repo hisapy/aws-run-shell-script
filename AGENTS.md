@@ -1,5 +1,8 @@
 # # AWS Run Shell Script - Agent Instructions
 
+This repo has been created from the repo template
+https://github.com/actions/typescript-action
+
 This GitHub Action is written in TypeScript and transpiled to JavaScript. Both
 the TypeScript sources and the **generated** JavaScript code are contained in
 this repository. The TypeScript sources are contained in the `src` directory and

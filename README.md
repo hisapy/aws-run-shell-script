@@ -6,6 +6,9 @@
 ![CodeQL](https://github.com/hisapy/aws-run-shell-script/actions/workflows/codeql-analysis.yml/badge.svg)
 ![Coverage](./badges/coverage.svg)
 
+> This repo has been created from the repo template
+> https://github.com/actions/typescript-action
+
 Use this GitHub Action to run a shell script in a AWS managed instance and wait
 for the result and output.
 
@@ -55,6 +58,8 @@ jobs:
           user: 'ec2-user'
           command: "cd ~/webapp && git pull origin main'"
           comment: 'Git pull repository'
+      - name: Check previous command status
+        run: echo ${{ steps.send.outputs.cmd_id }}
 ```
 
 ## Development
@@ -126,7 +131,7 @@ following steps:
 
 ## Dependency License Management
 
-This template includes a GitHub Actions workflow,
+This repo includes a GitHub Actions workflow,
 [`licensed.yml`](./.github/workflows/licensed.yml), that uses
 [Licensed](https://github.com/licensee/licensed) to check for dependencies with
 missing or non-compliant licenses. This workflow is initially disabled. To

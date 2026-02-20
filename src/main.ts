@@ -5,6 +5,31 @@ import * as core from '@actions/core'
  *
  * @returns Resolves when the action is complete.
  */
+import {
+  GetCommandInvocationCommand,
+  SSMClient,
+  SendCommandCommand
+} from '@aws-sdk/client-ssm'
+
+type ActionInputs = {
+  instanceId: string
+  command: string
+  user: string
+  timeoutSeconds: number
+  waitForCompletion: boolean
+}
+
+const TERMINAL_STATUSES = new Set<string>([
+  'Success',
+  'Cancelled',
+  'Cancelling',
+  'TimedOut',
+  'Failed',
+  'Undeliverable',
+  'Terminated',
+  'Delivery Timed Out',
+  'Execution Timed Out'
+])
 export async function run(): Promise<void> {
   try {
     const ms: string = core.getInput('milliseconds')

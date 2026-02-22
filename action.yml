@@ -10,20 +10,35 @@ inputs:
   instance_id:
     description: 'The instance ID to send the command to'
     required: true
+  working_directory:
+    description: 'The working directory for the command execution'
+    required: false
+  command:
+    description: 'The shell command to execute via AWS-RunShellScript'
+    required: true
+  comment:
+    description: 'A comment for the command execution'
+    required: false
   user:
     description: 'The user to run the command as'
+    required: true
     default: 'ec2-user'
-    required: false
   timeout:
     description: 'The timeout for the command execution in seconds'
     default: '120'
     required: false
+  wait_for_result:
+    description: 'Whether to wait for command to return a result (true|false)'
+    required: false
+    default: 'true'
 
 outputs:
-  command_output:
-    description: The output of the command executed in the instance
+  command_id:
+    description: The SSM command ID
   command_status:
     description: The status of the command executed in the instance
+  command_output:
+    description: The output of the command executed in the instance
 
 runs:
   using: node24

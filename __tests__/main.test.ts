@@ -133,30 +133,39 @@ describe('run()', () => {
     )
   })
 
-  it('sets command_status to Failed and outputs stderr when command fails', async () => {
+  it('sets command_status to Failed and calls setFailed when command fails', async () => {
     sendMock
       .mockResolvedValueOnce({
         Command: { CommandId: 'cmd-456', InstanceIds: [INSTANCE_ID] }
       })
       .mockResolvedValueOnce({
-        // StandardOutputContent absent → ?? falls back to StandardErrorContent
         StatusDetails: 'Failed',
         StandardErrorContent: 'permission denied'
       })
 
     await run()
 
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'command_id', 'cmd-456')
-    expect(core.setOutput).toHaveBeenNthCalledWith(
-      2,
-      'command_status',
-      'Failed'
+    expect(core.setOutput).not.toHaveBeenCalled()
+    expect(core.setFailed).toHaveBeenCalledWith(
+      'Command cmd-456 finished with non-success status: Failed.\nOutput: permission denied'
     )
-    expect(core.setOutput).toHaveBeenNthCalledWith(
-      3,
-      'command_output',
-      'permission denied'
+  })
+
+  it('fails and calls setFailed when the commandStatus is not success', async () => {
+    sendMock
+      .mockResolvedValueOnce({
+        Command: { CommandId: 'cmd-789', InstanceIds: [INSTANCE_ID] }
+      })
+      .mockResolvedValueOnce({
+        StatusDetails: 'Execution Timed Out',
+        StandardErrorContent: 'timed out'
+      })
+
+    await run()
+
+    expect(core.setOutput).not.toHaveBeenCalled()
+    expect(core.setFailed).toHaveBeenCalledWith(
+      'Command cmd-789 finished with non-success status: Execution Timed Out.\nOutput: timed out'
     )
-    expect(core.setFailed).not.toHaveBeenCalled()
   })
 })

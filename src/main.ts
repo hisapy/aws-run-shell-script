@@ -48,6 +48,7 @@ export async function run(): Promise<void> {
     core.setOutput('command_id', outputs.commandId)
     core.setOutput('command_status', outputs.commandStatus)
     core.setOutput('command_output', outputs.commandOutput)
+
     return
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
@@ -141,15 +142,19 @@ async function waitForResult(
 
     const statusDetails = response.StatusDetails ?? 'Pending'
 
-    if (TERMINAL_STATUS.has(statusDetails)) {
+    if (statusDetails == 'Success') {
       return {
         commandId,
         commandStatus: statusDetails,
-        commandOutput:
-          response.StandardOutputContent ?? response.StandardErrorContent ?? ''
+        commandOutput: response.StandardOutputContent
       }
+    } else if (TERMINAL_STATUS.has(statusDetails)) {
+      throw new Error(
+        `Command ${commandId} finished with non-success status: ${statusDetails}.\nOutput: ${response.StandardErrorContent}`
+      )
     }
 
+    // Exponential backoff with a max delay of 10 seconds
     await sleep(Math.min(delayMs, 10_000))
     delayMs *= 2
   }

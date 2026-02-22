@@ -12,17 +12,18 @@ inputs:
     required: true
   working_directory:
     description: 'The working directory for the command execution'
-    required: false
+    required: true
+    default: '/home/ec2-user'
+  user:
+    description: 'The user to run the command as'
+    required: true
+    default: 'ec2-user'
   command:
     description: 'The shell command to execute via AWS-RunShellScript'
     required: true
   comment:
     description: 'A comment for the command execution'
     required: false
-  user:
-    description: 'The user to run the command as'
-    required: true
-    default: 'ec2-user'
   timeout:
     description: 'The timeout for the command execution in seconds'
     default: '120'

@@ -59,7 +59,7 @@ jobs:
           command: 'cd ~/webapp && git pull origin main'
           comment: 'Git pull repository'
       - name: Check previous command status
-        run: echo ${{ steps.send.outputs.cmd_id }}
+        run: echo ${{ steps.send.outputs.command_id }}
 ```
 
 For CI or smoke tests where AWS credentials are not available, set

@@ -132,6 +132,9 @@ async function waitForResult(
   const timeoutMs = timeoutSeconds * 1000
   let delayMs = 1000
 
+  // Start with a delay to avoid possible InvocationDoesNotExist error when
+  // checking status immediately after sending command
+  await sleep(delayMs)
   while (Date.now() - startedAt < timeoutMs) {
     const response = await client.send(
       new GetCommandInvocationCommand({

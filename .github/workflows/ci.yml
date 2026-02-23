@@ -59,7 +59,8 @@ jobs:
         with:
           command: echo "Hello, World!"
           instance_id: i-0123456789abcdef0
+          dry_run: true
 
       - name: Print Output
         id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+        run: echo "${{ steps.test-action.outputs.command_status }}"

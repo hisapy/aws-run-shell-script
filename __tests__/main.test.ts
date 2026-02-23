@@ -51,6 +51,7 @@ describe('run()', () => {
     })
     core.getBooleanInput.mockImplementation((name: string) => {
       if (name === 'wait_for_result') return true
+      if (name === 'dry_run') return false
       return false
     })
   })
@@ -167,5 +168,30 @@ describe('run()', () => {
     expect(core.setFailed).toHaveBeenCalledWith(
       'Command cmd-789 finished with non-success status: Execution Timed Out.\nOutput: timed out'
     )
+  })
+
+  it('returns success outputs without calling SSM when dry_run is true', async () => {
+    core.getBooleanInput.mockImplementation((name: string) => {
+      if (name === 'wait_for_result') return true
+      if (name === 'dry_run') return true
+      return false
+    })
+
+    await run()
+
+    expect(SSMClientMock).not.toHaveBeenCalled()
+    expect(sendMock).not.toHaveBeenCalled()
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'command_id', 'dry-run')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'command_status',
+      'Success'
+    )
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      3,
+      'command_output',
+      'dry_run=true: AWS SSM execution was skipped'
+    )
+    expect(core.setFailed).not.toHaveBeenCalled()
   })
 })

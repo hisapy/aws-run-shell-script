@@ -32,6 +32,10 @@ inputs:
     description: 'Whether to wait for command to return a result (true|false)'
     required: false
     default: 'true'
+  dry_run:
+    description: 'Skip AWS SSM execution and return mock success outputs'
+    required: false
+    default: 'false'
 
 outputs:
   command_id:

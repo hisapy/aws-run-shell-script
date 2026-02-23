@@ -62,6 +62,9 @@ jobs:
         run: echo ${{ steps.send.outputs.cmd_id }}
 ```
 
+For CI or smoke tests where AWS credentials are not available, set
+`dry_run: true` to skip the AWS SSM call and return mock success outputs.
+
 ## Development
 
 After you've cloned the repository to your local machine or codespace, you'll

@@ -42148,8 +42148,16 @@ async function run() {
             command: getInput('command', { required: true }),
             comment: getInput('comment'),
             user: getInput('user'),
-            timeoutSeconds: parseTimeout(getInput('timeout'), getBooleanInput('wait_for_result'))
+            timeoutSeconds: parseTimeout(getInput('timeout'), getBooleanInput('wait_for_result')),
+            dryRun: getBooleanInput('dry_run')
         };
+        if (inputs.dryRun) {
+            info('dry_run=true: skipping AWS SSM execution');
+            setOutput('command_id', 'dry-run');
+            setOutput('command_status', 'Success');
+            setOutput('command_output', 'dry_run=true: AWS SSM execution was skipped');
+            return;
+        }
         const client = new SSMClient();
         const command = await runShellScript(inputs, client);
         const outputs = await waitForResult(command, client, inputs.timeoutSeconds);

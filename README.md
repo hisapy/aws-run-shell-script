@@ -7,7 +7,7 @@
 ![Coverage](./badges/coverage.svg)
 
 > This repo has been created from the repo template
-> https://github.com/actions/typescript-action
+> [https://github.com/actions/typescript-action](https://github.com/actions/typescript-action)
 
 Use this GitHub Action to run a shell script in a AWS managed instance and wait
 for the result and output.

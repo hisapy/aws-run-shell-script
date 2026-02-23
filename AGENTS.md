@@ -1,7 +1,7 @@
 # # AWS Run Shell Script - Agent Instructions
 
-This repo has been created from the repo template
-https://github.com/actions/typescript-action
+This repository has been created from the template
+[https://github.com/actions/typescript-action](https://github.com/actions/typescript-action)
 
 This GitHub Action is written in TypeScript and transpiled to JavaScript. Both
 the TypeScript sources and the **generated** JavaScript code are contained in
@@ -50,7 +50,7 @@ it is generated from.
 - [ESLint](eslint.config.mjs): Flat config format using `@typescript-eslint`,
   Jest plugins, and integrated Prettier
 - [TypeScript](tsconfig.json): Strict mode enabled (`noImplicitAny`,
-  `strictNullChecks`), ES2022 target/lib, inline type annotations
+  `strictNullChecks`), ECMAScript 2022 target/lib, inline type annotations
 
 **Code Patterns:**
 
@@ -142,8 +142,8 @@ npm run bundle
 
 - [rollup.config.ts](rollup.config.ts) transpiles `src/index.ts` →
   `dist/index.js` using TypeScript plugin
-- Output is ES module format with sourcemaps enabled
-- Node builtin resolution and CommonJS conversion plugins included
+- Output is ES module format with source maps enabled
+- Node built-in resolution and CommonJS conversion plugins included
 - The `dist/` directory is committed to the repository (pre-transpiled for
   GitHub Actions runtime)
 - CI verifies `dist/` stays in-sync with `src/`; ensure you commit transpiled

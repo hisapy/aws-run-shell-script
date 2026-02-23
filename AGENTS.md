@@ -201,10 +201,10 @@ npm run bundle
 **Workflow:**
 
 1. Make changes in `src/` directory
-2. Run tests: `npm run test`
-3. Verify bundling: `npm run bundle`
-4. Let CI check that `dist/` is up-to-date
-5. Commit both `src/` changes AND transpiled `dist/` output
+1. Run tests: `npm run test`
+1. Verify bundling: `npm run bundle`
+1. Let CI check that `dist/` is up-to-date
+1. Commit both `src/` changes AND transpiled `dist/` output
 
 ## Versioning
 

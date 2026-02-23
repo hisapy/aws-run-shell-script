@@ -28030,19 +28030,19 @@ function setFailed(message) {
     error(message);
 }
 /**
+ * Writes debug message to user log
+ * @param message debug message
+ */
+function debug(message) {
+    issueCommand('debug', {}, message);
+}
+/**
  * Adds an error issue
  * @param message error issue message. Errors will be converted to string via toString()
  * @param properties optional properties to add to the annotation.
  */
 function error(message, properties = {}) {
     issueCommand('error', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
-}
-/**
- * Writes info to log with console.log.
- * @param message info message
- */
-function info(message) {
-    process.stdout.write(message + os.EOL);
 }
 
 const getHttpHandlerExtensionConfiguration = (runtimeConfig) => {
@@ -42185,7 +42185,7 @@ async function runShellScript(input, client) {
             comment: [input.comment]
         }
     }));
-    info(`SSM send command response: ${JSON.stringify(response.Command, null, 2)}`);
+    debug(`SSM send command response: ${JSON.stringify(response.Command, null, 2)}`);
     if (response.Command?.CommandId === undefined) {
         throw new Error('Failed to get command ID from SSM response');
     }

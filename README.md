@@ -30,7 +30,7 @@ Prequisites:
 - SSM Agent installed in the instance
 - A Role with permissions to execute shell commands via the `AWS-RunShellScript`
   attached to the instance, e.g.,
-  `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore` ``
+  `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore`
 
 Then in your GitHub Actions workflow:
 

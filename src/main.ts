@@ -19,7 +19,6 @@ interface Inputs {
   comment: string
   user: string
   timeoutSeconds: number
-  dryRun: boolean
 }
 
 interface Outputs {
@@ -39,19 +38,7 @@ export async function run(): Promise<void> {
       timeoutSeconds: parseTimeout(
         core.getInput('timeout'),
         core.getBooleanInput('wait_for_result')
-      ),
-      dryRun: core.getBooleanInput('dry_run')
-    }
-
-    if (inputs.dryRun) {
-      core.info('dry_run=true: skipping AWS SSM execution')
-      core.setOutput('command_id', 'dry-run')
-      core.setOutput('command_status', 'Success')
-      core.setOutput(
-        'command_output',
-        'dry_run=true: AWS SSM execution was skipped'
       )
-      return
     }
 
     const client = new SSMClient()

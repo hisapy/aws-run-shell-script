@@ -56,10 +56,12 @@ jobs:
       - name: Test Local Action
         id: test-action
         uses: ./
+        env:
+          AWS_REGION: us-east-1
+
         with:
           command: echo "Hello, World!"
           instance_id: i-0123456789abcdef0
-          dry_run: true
 
       - name: Print Output
         id: output

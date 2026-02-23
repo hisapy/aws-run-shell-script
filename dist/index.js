@@ -42220,13 +42220,17 @@ async function waitForResult(command, client, timeoutSeconds) {
             InstanceId: instanceId
         }));
         const statusDetails = response.StatusDetails ?? 'Pending';
-        if (TERMINAL_STATUS.has(statusDetails)) {
+        if (statusDetails == 'Success') {
             return {
                 commandId,
                 commandStatus: statusDetails,
-                commandOutput: response.StandardOutputContent ?? response.StandardErrorContent ?? ''
+                commandOutput: response.StandardOutputContent
             };
         }
+        else if (TERMINAL_STATUS.has(statusDetails)) {
+            throw new Error(`Command ${commandId} finished with non-success status: ${statusDetails}.\nOutput: ${response.StandardErrorContent}`);
+        }
+        // Exponential backoff with a max delay of 10 seconds
         await sleep(Math.min(delayMs, 10_000));
         delayMs *= 2;
     }

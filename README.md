@@ -56,7 +56,7 @@ jobs:
         with:
           instance_id: ${{ inputs.instance_id }}
           user: 'ec2-user'
-          command: "cd ~/webapp && git pull origin main"
+          command: 'cd ~/webapp && git pull origin main'
           comment: 'Git pull repository'
       - name: Check previous command status
         run: echo ${{ steps.send.outputs.cmd_id }}

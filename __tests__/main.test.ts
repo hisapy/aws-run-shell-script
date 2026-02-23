@@ -168,4 +168,39 @@ describe('run()', () => {
       'Command cmd-789 finished with non-success status: Execution Timed Out.\nOutput: timed out'
     )
   })
+
+  it('escapes single quotes in commands', async () => {
+    core.getInput.mockImplementation((name: string) => {
+      if (name === 'instance_id') return INSTANCE_ID
+      if (name === 'command') return "echo 'Hello World'"
+      if (name === 'user') return 'ec2-user'
+      if (name === 'timeout') return '120'
+      if (name === 'working_directory') return ''
+      if (name === 'comment') return ''
+      return ''
+    })
+
+    core.getBooleanInput.mockImplementation((name: string) => {
+      if (name === 'wait_for_result') return false
+      return false
+    })
+
+    sendMock.mockResolvedValueOnce({
+      Command: {
+        CommandId: 'cmd-escape',
+        InstanceIds: [INSTANCE_ID],
+        Status: 'Pending'
+      }
+    })
+
+    await run()
+
+    expect(SendCommandCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Parameters: expect.objectContaining({
+          commands: ["sudo -u ec2-user bash -c 'echo '\\''Hello World'\\'''"]
+        })
+      })
+    )
+  })
 })

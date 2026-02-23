@@ -42174,12 +42174,13 @@ function parseTimeout(timeoutRaw = '120', waitForResult = true) {
     return timeoutSeconds;
 }
 async function runShellScript(input, client) {
+    const command = escapeSingleQuotes(input.command);
     const response = await client.send(new SendCommandCommand({
         DocumentName: 'AWS-RunShellScript',
         InstanceIds: [input.instanceId],
         TimeoutSeconds: input.timeoutSeconds,
         Parameters: {
-            commands: [`sudo -u ${input.user} bash -c '${input.command}'`],
+            commands: [`sudo -u ${input.user} bash -c '${command}'`],
             workingDirectory: [input.workingDirectory],
             comment: [input.comment]
         }
@@ -42214,6 +42215,9 @@ async function waitForResult(command, client, timeoutSeconds) {
     const startedAt = Date.now();
     const timeoutMs = timeoutSeconds * 1000;
     let delayMs = 1000;
+    // Start with a delay to avoid possible InvocationDoesNotExist error when
+    // checking status immediately after sending command
+    await sleep(delayMs);
     while (Date.now() - startedAt < timeoutMs) {
         const response = await client.send(new GetCommandInvocationCommand({
             CommandId: commandId,
@@ -42238,6 +42242,9 @@ async function waitForResult(command, client, timeoutSeconds) {
 }
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function escapeSingleQuotes(command) {
+    return command.replace(/'/g, "'\\''");
 }
 
 /**

@@ -75,13 +75,14 @@ async function runShellScript(
   input: Inputs,
   client: SSMClient
 ): Promise<Command | undefined> {
+  const command = escapeSingleQuotes(input.command)
   const response = await client.send(
     new SendCommandCommand({
       DocumentName: 'AWS-RunShellScript',
       InstanceIds: [input.instanceId],
       TimeoutSeconds: input.timeoutSeconds,
       Parameters: {
-        commands: [`sudo -u ${input.user} bash -c '${input.command}'`],
+        commands: [`sudo -u ${input.user} bash -c '${command}'`],
         workingDirectory: [input.workingDirectory],
         comment: [input.comment]
       }
@@ -169,4 +170,8 @@ async function waitForResult(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function escapeSingleQuotes(command: string): string {
+  return command.replace(/'/g, "'\\''")
 }

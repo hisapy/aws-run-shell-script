@@ -133,7 +133,7 @@ describe('run()', () => {
     )
   })
 
-  it('sets command_status to Failed and calls setFailed when command fails', async () => {
+  it('does not set outputs and calls setFailed when command fails', async () => {
     sendMock
       .mockResolvedValueOnce({
         Command: { CommandId: 'cmd-456', InstanceIds: [INSTANCE_ID] }

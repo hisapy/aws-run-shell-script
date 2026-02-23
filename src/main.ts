@@ -89,7 +89,7 @@ async function runShellScript(
     })
   )
 
-  core.info(
+  core.debug(
     `SSM send command response: ${JSON.stringify(response.Command, null, 2)}`
   )
 

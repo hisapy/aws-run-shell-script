@@ -6,13 +6,13 @@
 ![CodeQL](https://github.com/hisapy/aws-run-shell-script/actions/workflows/codeql-analysis.yml/badge.svg)
 ![Coverage](./badges/coverage.svg)
 
-> This repo has been created from the repo template
+> This repository has been created from the template
 > [https://github.com/actions/typescript-action](https://github.com/actions/typescript-action)
 
 Use this GitHub Action to run a shell script in a AWS managed instance and wait
 for the result and output.
 
-Internally, this calls AWS Systems Manger (SSM) SendCommand using the
+Internally, this calls AWS Systems Manager (SSM) SendCommand using the
 "AWS-RunShellScript" SSM document.
 
 > NOTICE: Only tested in AL2023 AMI.
@@ -25,7 +25,7 @@ TODO:
 
 ## Usage
 
-Prequisites:
+Prerequisites:
 
 - SSM Agent installed in the instance
 - A Role with permissions to execute shell commands via the `AWS-RunShellScript`
@@ -74,11 +74,11 @@ need to perform some initial setup steps before you can develop your action.
 >
 > If you are using a version manager like
 > [`nodenv`](https://github.com/nodenv/nodenv) or [`asdf`](https://asdf-vm.com)
-> (configured with legacy_version_file=yes), this repo has a `.node-version`
-> file at the root of the repository that can be used to automatically switch to
-> the correct version when you `cd` into the repository. Additionally, this
-> `.node-version` file is used by GitHub Actions in any `actions/setup-node`
-> actions.
+> (configured with legacy_version_file=yes), this repository has a
+> `.node-version` file at the root of the repository that can be used to
+> automatically switch to the correct version when you `cd` into the repository.
+> Additionally, this `.node-version` file is used by GitHub Actions in any
+> `actions/setup-node` actions.
 
 1. :hammer_and_wrench: Install the dependencies
 
@@ -134,7 +134,7 @@ following steps:
 
 ## Dependency License Management
 
-This repo includes a GitHub Actions workflow,
+This repository includes a GitHub Actions workflow,
 [`licensed.yml`](./.github/workflows/licensed.yml), that uses
 [Licensed](https://github.com/licensee/licensed) to check for dependencies with
 missing or non-compliant licenses. This workflow is initially disabled. To

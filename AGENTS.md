@@ -196,7 +196,7 @@ npm run bundle
   (see [.env.example](.env.example))
 - Use `npm run ci-test` for CI-specific testing with experimental VM modules
   flag
-- Enable format-on-save in VS Code for automatic Prettier formatting
+- Enable format-on-save in Visual Studio Code for automatic Prettier formatting
 
 **Workflow:**
 

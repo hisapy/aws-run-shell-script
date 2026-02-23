@@ -57,7 +57,8 @@ jobs:
         id: test-action
         uses: ./
         with:
-          milliseconds: 2000
+          command: echo "Hello, World!"
+          instance_id: i-0123456789abcdef0
 
       - name: Print Output
         id: output

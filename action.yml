@@ -1,6 +1,5 @@
 name: 'AWS Run Shell Script'
-description:
-  'Run a shell script inside an EC2 managed instance via AWS SSM SendCommand'
+description: 'Run a shell script inside an EC2 managed instance via AWS SSM SendCommand'
 author: '@hisapy'
 
 branding:
@@ -13,11 +12,11 @@ inputs:
     required: true
   working_directory:
     description: 'The working directory for the command execution'
-    required: true
+    required: false
     default: '/home/ec2-user'
   user:
     description: 'The user to run the command as'
-    required: true
+    required: false
     default: 'ec2-user'
   command:
     description: 'The shell command to execute via AWS-RunShellScript'

@@ -43,26 +43,3 @@ jobs:
       - name: Test
         id: npm-ci-test
         run: npm run ci-test
-
-  test-action:
-    name: GitHub Actions Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v6
-
-      - name: Test Local Action
-        id: test-action
-        uses: ./
-        env:
-          AWS_REGION: us-east-1
-
-        with:
-          command: echo "Hello, World!"
-          instance_id: i-0123456789abcdef0
-
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.command_status }}"

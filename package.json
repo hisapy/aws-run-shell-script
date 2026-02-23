@@ -1,7 +1,7 @@
 {
   "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
+  "description": "GitHub Action to run a command on an EC2 instance with AWS SSM",
+  "version": "0.0.1",
   "author": "",
   "type": "module",
   "private": true,

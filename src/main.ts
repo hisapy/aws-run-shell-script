@@ -83,7 +83,7 @@ async function runShellScript(
       TimeoutSeconds: input.timeoutSeconds,
       Comment: input.comment,
       Parameters: {
-        commands: [`sudo -u ${input.user} bash -c '${command}'`],
+        commands: [`sudo -u ${input.user} bash -lc '${command}'`],
         workingDirectory: [input.workingDirectory]
       }
     })

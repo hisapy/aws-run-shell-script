@@ -198,7 +198,7 @@ describe('run()', () => {
     expect(SendCommandCommandMock).toHaveBeenCalledWith(
       expect.objectContaining({
         Parameters: expect.objectContaining({
-          commands: ["sudo -u ec2-user bash -c 'echo '\\''Hello World'\\'''"]
+          commands: ["sudo -u ec2-user bash -lc 'echo '\\''Hello World'\\'''"]
         })
       })
     )

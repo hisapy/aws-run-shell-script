@@ -153,6 +153,9 @@ async function waitForResult(
         commandOutput: response.StandardOutputContent
       }
     } else if (TERMINAL_STATUS.has(statusDetails)) {
+      core.debug(
+        `Command output: ${JSON.stringify(response.StandardOutputContent, null, 2)}`
+      )
       throw new Error(
         `Command ${commandId} finished with non-success status: ${statusDetails}.\nOutput: ${response.StandardErrorContent}`
       )

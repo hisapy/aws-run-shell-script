@@ -42232,6 +42232,7 @@ async function waitForResult(command, client, timeoutSeconds) {
             };
         }
         else if (TERMINAL_STATUS.has(statusDetails)) {
+            debug(`Command output: ${JSON.stringify(response.StandardOutputContent, null, 2)}`);
             throw new Error(`Command ${commandId} finished with non-success status: ${statusDetails}.\nOutput: ${response.StandardErrorContent}`);
         }
         // Exponential backoff with a max delay of 10 seconds

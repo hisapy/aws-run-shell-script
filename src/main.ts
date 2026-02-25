@@ -147,6 +147,8 @@ async function waitForResult(
     const statusDetails = response.StatusDetails ?? 'Pending'
 
     if (statusDetails == 'Success') {
+      core.info(response.StandardOutputContent ?? '')
+
       return {
         commandId,
         commandStatus: statusDetails,

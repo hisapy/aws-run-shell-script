@@ -28044,6 +28044,13 @@ function debug(message) {
 function error(message, properties = {}) {
     issueCommand('error', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
+/**
+ * Writes info to log with console.log.
+ * @param message info message
+ */
+function info(message) {
+    process.stdout.write(message + os.EOL);
+}
 
 const getHttpHandlerExtensionConfiguration = (runtimeConfig) => {
     return {
@@ -42225,6 +42232,7 @@ async function waitForResult(command, client, timeoutSeconds) {
         }));
         const statusDetails = response.StatusDetails ?? 'Pending';
         if (statusDetails == 'Success') {
+            info(response.StandardOutputContent ?? '');
             return {
                 commandId,
                 commandStatus: statusDetails,

@@ -1,9 +1,9 @@
 import * as os from 'os';
-import os__default, { homedir, platform, release } from 'os';
+import os__default, { homedir } from 'os';
 import * as crypto$1 from 'crypto';
 import crypto__default, { createHash, createHmac } from 'crypto';
 import * as fs from 'fs';
-import { promises, readFileSync } from 'fs';
+import { promises } from 'fs';
 import { sep, join } from 'path';
 import http, { Agent as Agent$1, request as request$3 } from 'http';
 import https, { Agent, request as request$2 } from 'https';
@@ -11,13 +11,13 @@ import 'net';
 import require$$1 from 'tls';
 import events$1 from 'events';
 import 'assert';
-import require$$6, { promisify } from 'util';
+import require$$6 from 'util';
 import require$$0$1 from 'node:assert';
 import require$$0$3 from 'node:net';
 import require$$2 from 'node:http';
 import require$$0$2 from 'node:stream';
 import require$$0 from 'node:buffer';
-import require$$0$4 from 'node:util';
+import require$$0$4, { promisify } from 'node:util';
 import require$$7 from 'node:querystring';
 import require$$8 from 'node:events';
 import require$$0$5 from 'node:diagnostics_channel';
@@ -31,18 +31,19 @@ import require$$5$2 from 'node:async_hooks';
 import require$$1$4 from 'node:console';
 import require$$1$5 from 'node:dns';
 import require$$5$3 from 'string_decoder';
-import { exec } from 'child_process';
+import 'child_process';
 import 'timers';
 import { parse as parse$1 } from 'url';
 import { Buffer as Buffer$1 } from 'buffer';
-import fs$1, { readFile as readFile$1 } from 'fs/promises';
+import fs$1, { readFile as readFile$2 } from 'node:fs/promises';
+import { ReadStream, lstatSync, fstatSync, promises as promises$1, readFileSync } from 'node:fs';
 import { createHash as createHash$1, createPrivateKey, createPublicKey, sign } from 'node:crypto';
-import { ReadStream, lstatSync, fstatSync, promises as promises$1 } from 'node:fs';
-import { homedir as homedir$1 } from 'node:os';
-import { dirname, join as join$1 } from 'node:path';
+import { platform, release, homedir as homedir$1 } from 'node:os';
+import { normalize, sep as sep$1, join as join$1, dirname } from 'node:path';
+import { exec } from 'node:child_process';
+import { readFile as readFile$1 } from 'fs/promises';
 import { Readable, Writable } from 'stream';
-import { readFile as readFile$2 } from 'node:fs/promises';
-import { versions, env } from 'process';
+import { versions, env } from 'node:process';
 
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -30498,7 +30499,8 @@ class HttpBindingProtocol extends HttpProtocol {
         const headers = {};
         const endpoint = await context.endpoint();
         const ns = NormalizedSchema.of(operationSchema?.input);
-        const schema = ns.getSchema();
+        const payloadMemberNames = [];
+        const payloadMemberSchemas = [];
         let hasNonHttpBindingMember = false;
         let payload;
         const request = new HttpRequest({
@@ -30591,10 +30593,29 @@ class HttpBindingProtocol extends HttpProtocol {
             }
             else {
                 hasNonHttpBindingMember = true;
+                payloadMemberNames.push(memberName);
+                payloadMemberSchemas.push(memberNs);
             }
         }
         if (hasNonHttpBindingMember && input) {
-            serializer.write(schema, input);
+            const [namespace, name] = (ns.getName(true) ?? "#Unknown").split("#");
+            const requiredMembers = ns.getSchema()[6];
+            const payloadSchema = [
+                3,
+                namespace,
+                name,
+                ns.getMergedTraits(),
+                payloadMemberNames,
+                payloadMemberSchemas,
+                undefined,
+            ];
+            if (requiredMembers) {
+                payloadSchema[6] = requiredMembers;
+            }
+            else {
+                payloadSchema.pop();
+            }
+            serializer.write(payloadSchema, input);
             payload = serializer.flush();
         }
         request.headers = headers;
@@ -31387,7 +31408,7 @@ const parseURL = (value) => {
 const stringEquals = (value1, value2) => value1 === value2;
 
 const substring = (input, start, stop, reverse) => {
-    if (start >= stop || input.length < stop) {
+    if (start >= stop || input.length < stop || /[^\u0000-\u007f]/.test(input)) {
         return null;
     }
     if (!reverse) {
@@ -31663,10 +31684,10 @@ const resolveEndpoint = (ruleSetObject, options) => {
     return endpoint;
 };
 
-const isVirtualHostableS3Bucket$3 = (value, allowSubDomains = false) => {
+const isVirtualHostableS3Bucket = (value, allowSubDomains = false) => {
     if (allowSubDomains) {
         for (const label of value.split(".")) {
-            if (!isVirtualHostableS3Bucket$3(label)) {
+            if (!isVirtualHostableS3Bucket(label)) {
                 return false;
             }
         }
@@ -31687,16 +31708,16 @@ const isVirtualHostableS3Bucket$3 = (value, allowSubDomains = false) => {
     return true;
 };
 
-const ARN_DELIMITER$3 = ":";
-const RESOURCE_DELIMITER$3 = "/";
-const parseArn$3 = (value) => {
-    const segments = value.split(ARN_DELIMITER$3);
+const ARN_DELIMITER = ":";
+const RESOURCE_DELIMITER = "/";
+const parseArn = (value) => {
+    const segments = value.split(ARN_DELIMITER);
     if (segments.length < 6)
         return null;
     const [arn, partition, service, region, accountId, ...resourcePath] = segments;
-    if (arn !== "arn" || partition === "" || service === "" || resourcePath.join(ARN_DELIMITER$3) === "")
+    if (arn !== "arn" || partition === "" || service === "" || resourcePath.join(ARN_DELIMITER) === "")
         return null;
-    const resourceId = resourcePath.map((resource) => resource.split(RESOURCE_DELIMITER$3)).flat();
+    const resourceId = resourcePath.map((resource) => resource.split(RESOURCE_DELIMITER)).flat();
     return {
         partition,
         service,
@@ -31706,7 +31727,7 @@ const parseArn$3 = (value) => {
     };
 };
 
-var partitions$3 = [
+var partitions = [
 	{
 		id: "aws",
 		outputs: {
@@ -31979,12 +32000,12 @@ var partitions$3 = [
 		}
 	}
 ];
-var partitionsInfo$3 = {
-	partitions: partitions$3};
+var partitionsInfo = {
+	partitions: partitions};
 
-let selectedPartitionsInfo$3 = partitionsInfo$3;
-const partition$3 = (value) => {
-    const { partitions } = selectedPartitionsInfo$3;
+let selectedPartitionsInfo = partitionsInfo;
+const partition = (value) => {
+    const { partitions } = selectedPartitionsInfo;
     for (const partition of partitions) {
         const { regions, outputs } = partition;
         for (const [region, regionData] of Object.entries(regions)) {
@@ -32014,12 +32035,12 @@ const partition$3 = (value) => {
     };
 };
 
-const awsEndpointFunctions$3 = {
-    isVirtualHostableS3Bucket: isVirtualHostableS3Bucket$3,
-    parseArn: parseArn$3,
-    partition: partition$3,
+const awsEndpointFunctions = {
+    isVirtualHostableS3Bucket: isVirtualHostableS3Bucket,
+    parseArn: parseArn,
+    partition: partition,
 };
-customEndpointFunctions.aws = awsEndpointFunctions$3;
+customEndpointFunctions.aws = awsEndpointFunctions;
 
 function parseQueryString(querystring) {
     const query = {};
@@ -33517,6 +33538,7 @@ const emitWarningIfUnsupportedVersion = (version) => {
     }
 };
 
+const knownAlgorithms = Object.values(AlgorithmId);
 const getChecksumConfiguration = (runtimeConfig) => {
     const checksumAlgorithms = [];
     for (const id in AlgorithmId) {
@@ -33529,8 +33551,23 @@ const getChecksumConfiguration = (runtimeConfig) => {
             checksumConstructor: () => runtimeConfig[algorithmId],
         });
     }
+    for (const [id, ChecksumCtor] of Object.entries(runtimeConfig.checksumAlgorithms ?? {})) {
+        checksumAlgorithms.push({
+            algorithmId: () => id,
+            checksumConstructor: () => ChecksumCtor,
+        });
+    }
     return {
         addChecksumAlgorithm(algo) {
+            runtimeConfig.checksumAlgorithms = runtimeConfig.checksumAlgorithms ?? {};
+            const id = algo.algorithmId();
+            const ctor = algo.checksumConstructor();
+            if (knownAlgorithms.includes(id)) {
+                runtimeConfig.checksumAlgorithms[id.toUpperCase()] = ctor;
+            }
+            else {
+                runtimeConfig.checksumAlgorithms[id] = ctor;
+            }
             checksumAlgorithms.push(algo);
         },
         checksumAlgorithms() {
@@ -33541,7 +33578,10 @@ const getChecksumConfiguration = (runtimeConfig) => {
 const resolveChecksumRuntimeConfig = (clientConfig) => {
     const runtimeConfig = {};
     clientConfig.checksumAlgorithms().forEach((checksumAlgorithm) => {
-        runtimeConfig[checksumAlgorithm.algorithmId()] = checksumAlgorithm.checksumConstructor();
+        const id = checksumAlgorithm.algorithmId();
+        if (knownAlgorithms.includes(id)) {
+            runtimeConfig[id] = checksumAlgorithm.checksumConstructor();
+        }
     });
     return runtimeConfig;
 };
@@ -33661,9 +33701,9 @@ class ProtocolLib {
             }
             error.Error = {
                 ...error.Error,
-                Type: error.Error.Type,
-                Code: error.Error.Code,
-                Message: error.Error.message ?? error.Error.Message ?? msg,
+                Type: error.Error?.Type,
+                Code: error.Error?.Code,
+                Message: error.Error?.message ?? error.Error?.Message ?? msg,
             };
             const reqId = error.$metadata.requestId;
             if (reqId) {
@@ -36787,7 +36827,7 @@ class AwsQueryProtocol extends RpcProtocol {
     }
     async handleError(operationSchema, context, response, dataObject, metadata) {
         const errorIdentifier = this.loadQueryErrorCode(response, dataObject) ?? "Unknown";
-        const errorData = this.loadQueryError(dataObject);
+        const errorData = this.loadQueryError(dataObject) ?? {};
         const message = this.loadQueryErrorMessage(dataObject);
         errorData.message = message;
         errorData.Error = {
@@ -38156,9 +38196,9 @@ const commonParams$4 = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version$2 = "3.994.0";
-var packageInfo$2 = {
-	version: version$2};
+var version$1 = "3.1000.0";
+var packageInfo$1 = {
+	version: version$1};
 
 const ENV_KEY = "AWS_ACCESS_KEY_ID";
 const ENV_SECRET = "AWS_SECRET_ACCESS_KEY";
@@ -38346,19 +38386,71 @@ const defaultProvider = (init = {}) => memoizeChain([
 ], credentialsTreatedAsExpired);
 const credentialsTreatedAsExpired = (credentials) => credentials?.expiration !== undefined && credentials.expiration.getTime() - Date.now() < 300000;
 
+const getRuntimeUserAgentPair = () => {
+    const runtimesToCheck = ["deno", "bun", "llrt"];
+    for (const runtime of runtimesToCheck) {
+        if (versions[runtime]) {
+            return [`md/${runtime}`, versions[runtime]];
+        }
+    }
+    return ["md/nodejs", versions.node];
+};
+
+const getTypeScriptPackageJsonPath = (dirname = "") => {
+    let nodeModulesPath;
+    const normalizedPath = normalize(dirname);
+    const parts = normalizedPath.split(sep$1);
+    const nodeModulesIndex = parts.indexOf("node_modules");
+    if (nodeModulesIndex !== -1) {
+        nodeModulesPath = parts.slice(0, nodeModulesIndex).join(sep$1);
+    }
+    else {
+        nodeModulesPath = dirname;
+    }
+    return join$1(nodeModulesPath, "node_modules", "typescript", "package.json");
+};
+
+let tscVersion;
+const getTypeScriptUserAgentPair = async () => {
+    if (tscVersion === null) {
+        return undefined;
+    }
+    else if (typeof tscVersion === "string") {
+        return ["md/tsc", tscVersion];
+    }
+    try {
+        const packageJson = await readFile$2(getTypeScriptPackageJsonPath(__dirname), "utf-8");
+        const { version } = JSON.parse(packageJson);
+        if (typeof version !== "string") {
+            tscVersion = null;
+            return undefined;
+        }
+        tscVersion = version;
+        return ["md/tsc", tscVersion];
+    }
+    catch {
+        tscVersion = null;
+    }
+};
+
 const isCrtAvailable = () => {
     return null;
 };
 
 const createDefaultUserAgentProvider = ({ serviceId, clientVersion }) => {
+    const runtimeUserAgentPair = getRuntimeUserAgentPair();
     return async (config) => {
         const sections = [
             ["aws-sdk-js", clientVersion],
             ["ua", "2.1"],
             [`os/${platform()}`, release()],
             ["lang/js"],
-            ["md/nodejs", `${versions.node}`],
+            runtimeUserAgentPair,
         ];
+        const typescriptUserAgentPair = await getTypeScriptUserAgentPair();
+        if (typescriptUserAgentPair) {
+            sections.push(typescriptUserAgentPair);
+        }
         const crtAvailable = isCrtAvailable();
         if (crtAvailable) {
             sections.push(crtAvailable);
@@ -38512,364 +38604,6 @@ const inferPhysicalRegion = async () => {
     }
 };
 
-const isVirtualHostableS3Bucket$2 = (value, allowSubDomains = false) => {
-    if (allowSubDomains) {
-        for (const label of value.split(".")) {
-            if (!isVirtualHostableS3Bucket$2(label)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    if (!isValidHostLabel(value)) {
-        return false;
-    }
-    if (value.length < 3 || value.length > 63) {
-        return false;
-    }
-    if (value !== value.toLowerCase()) {
-        return false;
-    }
-    if (isIpAddress(value)) {
-        return false;
-    }
-    return true;
-};
-
-const ARN_DELIMITER$2 = ":";
-const RESOURCE_DELIMITER$2 = "/";
-const parseArn$2 = (value) => {
-    const segments = value.split(ARN_DELIMITER$2);
-    if (segments.length < 6)
-        return null;
-    const [arn, partition, service, region, accountId, ...resourcePath] = segments;
-    if (arn !== "arn" || partition === "" || service === "" || resourcePath.join(ARN_DELIMITER$2) === "")
-        return null;
-    const resourceId = resourcePath.map((resource) => resource.split(RESOURCE_DELIMITER$2)).flat();
-    return {
-        partition,
-        service,
-        region,
-        accountId,
-        resourceId,
-    };
-};
-
-var partitions$2 = [
-	{
-		id: "aws",
-		outputs: {
-			dnsSuffix: "amazonaws.com",
-			dualStackDnsSuffix: "api.aws",
-			implicitGlobalRegion: "us-east-1",
-			name: "aws",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$",
-		regions: {
-			"af-south-1": {
-				description: "Africa (Cape Town)"
-			},
-			"ap-east-1": {
-				description: "Asia Pacific (Hong Kong)"
-			},
-			"ap-east-2": {
-				description: "Asia Pacific (Taipei)"
-			},
-			"ap-northeast-1": {
-				description: "Asia Pacific (Tokyo)"
-			},
-			"ap-northeast-2": {
-				description: "Asia Pacific (Seoul)"
-			},
-			"ap-northeast-3": {
-				description: "Asia Pacific (Osaka)"
-			},
-			"ap-south-1": {
-				description: "Asia Pacific (Mumbai)"
-			},
-			"ap-south-2": {
-				description: "Asia Pacific (Hyderabad)"
-			},
-			"ap-southeast-1": {
-				description: "Asia Pacific (Singapore)"
-			},
-			"ap-southeast-2": {
-				description: "Asia Pacific (Sydney)"
-			},
-			"ap-southeast-3": {
-				description: "Asia Pacific (Jakarta)"
-			},
-			"ap-southeast-4": {
-				description: "Asia Pacific (Melbourne)"
-			},
-			"ap-southeast-5": {
-				description: "Asia Pacific (Malaysia)"
-			},
-			"ap-southeast-6": {
-				description: "Asia Pacific (New Zealand)"
-			},
-			"ap-southeast-7": {
-				description: "Asia Pacific (Thailand)"
-			},
-			"aws-global": {
-				description: "aws global region"
-			},
-			"ca-central-1": {
-				description: "Canada (Central)"
-			},
-			"ca-west-1": {
-				description: "Canada West (Calgary)"
-			},
-			"eu-central-1": {
-				description: "Europe (Frankfurt)"
-			},
-			"eu-central-2": {
-				description: "Europe (Zurich)"
-			},
-			"eu-north-1": {
-				description: "Europe (Stockholm)"
-			},
-			"eu-south-1": {
-				description: "Europe (Milan)"
-			},
-			"eu-south-2": {
-				description: "Europe (Spain)"
-			},
-			"eu-west-1": {
-				description: "Europe (Ireland)"
-			},
-			"eu-west-2": {
-				description: "Europe (London)"
-			},
-			"eu-west-3": {
-				description: "Europe (Paris)"
-			},
-			"il-central-1": {
-				description: "Israel (Tel Aviv)"
-			},
-			"me-central-1": {
-				description: "Middle East (UAE)"
-			},
-			"me-south-1": {
-				description: "Middle East (Bahrain)"
-			},
-			"mx-central-1": {
-				description: "Mexico (Central)"
-			},
-			"sa-east-1": {
-				description: "South America (Sao Paulo)"
-			},
-			"us-east-1": {
-				description: "US East (N. Virginia)"
-			},
-			"us-east-2": {
-				description: "US East (Ohio)"
-			},
-			"us-west-1": {
-				description: "US West (N. California)"
-			},
-			"us-west-2": {
-				description: "US West (Oregon)"
-			}
-		}
-	},
-	{
-		id: "aws-cn",
-		outputs: {
-			dnsSuffix: "amazonaws.com.cn",
-			dualStackDnsSuffix: "api.amazonwebservices.com.cn",
-			implicitGlobalRegion: "cn-northwest-1",
-			name: "aws-cn",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^cn\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-cn-global": {
-				description: "aws-cn global region"
-			},
-			"cn-north-1": {
-				description: "China (Beijing)"
-			},
-			"cn-northwest-1": {
-				description: "China (Ningxia)"
-			}
-		}
-	},
-	{
-		id: "aws-eusc",
-		outputs: {
-			dnsSuffix: "amazonaws.eu",
-			dualStackDnsSuffix: "api.amazonwebservices.eu",
-			implicitGlobalRegion: "eusc-de-east-1",
-			name: "aws-eusc",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^eusc\\-(de)\\-\\w+\\-\\d+$",
-		regions: {
-			"eusc-de-east-1": {
-				description: "AWS European Sovereign Cloud (Germany)"
-			}
-		}
-	},
-	{
-		id: "aws-iso",
-		outputs: {
-			dnsSuffix: "c2s.ic.gov",
-			dualStackDnsSuffix: "api.aws.ic.gov",
-			implicitGlobalRegion: "us-iso-east-1",
-			name: "aws-iso",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-iso\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-global": {
-				description: "aws-iso global region"
-			},
-			"us-iso-east-1": {
-				description: "US ISO East"
-			},
-			"us-iso-west-1": {
-				description: "US ISO WEST"
-			}
-		}
-	},
-	{
-		id: "aws-iso-b",
-		outputs: {
-			dnsSuffix: "sc2s.sgov.gov",
-			dualStackDnsSuffix: "api.aws.scloud",
-			implicitGlobalRegion: "us-isob-east-1",
-			name: "aws-iso-b",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-isob\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-b-global": {
-				description: "aws-iso-b global region"
-			},
-			"us-isob-east-1": {
-				description: "US ISOB East (Ohio)"
-			},
-			"us-isob-west-1": {
-				description: "US ISOB West"
-			}
-		}
-	},
-	{
-		id: "aws-iso-e",
-		outputs: {
-			dnsSuffix: "cloud.adc-e.uk",
-			dualStackDnsSuffix: "api.cloud-aws.adc-e.uk",
-			implicitGlobalRegion: "eu-isoe-west-1",
-			name: "aws-iso-e",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^eu\\-isoe\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-e-global": {
-				description: "aws-iso-e global region"
-			},
-			"eu-isoe-west-1": {
-				description: "EU ISOE West"
-			}
-		}
-	},
-	{
-		id: "aws-iso-f",
-		outputs: {
-			dnsSuffix: "csp.hci.ic.gov",
-			dualStackDnsSuffix: "api.aws.hci.ic.gov",
-			implicitGlobalRegion: "us-isof-south-1",
-			name: "aws-iso-f",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-isof\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-f-global": {
-				description: "aws-iso-f global region"
-			},
-			"us-isof-east-1": {
-				description: "US ISOF EAST"
-			},
-			"us-isof-south-1": {
-				description: "US ISOF SOUTH"
-			}
-		}
-	},
-	{
-		id: "aws-us-gov",
-		outputs: {
-			dnsSuffix: "amazonaws.com",
-			dualStackDnsSuffix: "api.aws",
-			implicitGlobalRegion: "us-gov-west-1",
-			name: "aws-us-gov",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-gov\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-us-gov-global": {
-				description: "aws-us-gov global region"
-			},
-			"us-gov-east-1": {
-				description: "AWS GovCloud (US-East)"
-			},
-			"us-gov-west-1": {
-				description: "AWS GovCloud (US-West)"
-			}
-		}
-	}
-];
-var partitionsInfo$2 = {
-	partitions: partitions$2};
-
-let selectedPartitionsInfo$2 = partitionsInfo$2;
-const partition$2 = (value) => {
-    const { partitions } = selectedPartitionsInfo$2;
-    for (const partition of partitions) {
-        const { regions, outputs } = partition;
-        for (const [region, regionData] of Object.entries(regions)) {
-            if (region === value) {
-                return {
-                    ...outputs,
-                    ...regionData,
-                };
-            }
-        }
-    }
-    for (const partition of partitions) {
-        const { regionRegex, outputs } = partition;
-        if (new RegExp(regionRegex).test(value)) {
-            return {
-                ...outputs,
-            };
-        }
-    }
-    const DEFAULT_PARTITION = partitions.find((partition) => partition.id === "aws");
-    if (!DEFAULT_PARTITION) {
-        throw new Error("Provided region was not found in the partition array or regex," +
-            " and default partition with id 'aws' doesn't exist.");
-    }
-    return {
-        ...DEFAULT_PARTITION.outputs,
-    };
-};
-
-const awsEndpointFunctions$2 = {
-    isVirtualHostableS3Bucket: isVirtualHostableS3Bucket$2,
-    parseArn: parseArn$2,
-    partition: partition$2,
-};
-customEndpointFunctions.aws = awsEndpointFunctions$2;
-
 const u$4 = "required", v$4 = "fn", w$4 = "argv", x$4 = "ref";
 const a$4 = true, b$4 = "isSet", c$4 = "booleanEquals", d$4 = "error", e$4 = "endpoint", f$4 = "tree", g$4 = "PartitionResult", h$4 = "getAttr", i$4 = { [u$4]: false, "type": "string" }, j$4 = { [u$4]: true, "default": false, "type": "boolean" }, k$4 = { [x$4]: "Endpoint" }, l$4 = { [v$4]: c$4, [w$4]: [{ [x$4]: "UseFIPS" }, true] }, m$4 = { [v$4]: c$4, [w$4]: [{ [x$4]: "UseDualStack" }, true] }, n$4 = {}, o$4 = { [v$4]: h$4, [w$4]: [{ [x$4]: g$4 }, "supportsFIPS"] }, p$4 = { [x$4]: g$4 }, q$4 = { [v$4]: c$4, [w$4]: [true, { [v$4]: h$4, [w$4]: [p$4, "supportsDualStack"] }] }, r$4 = [l$4], s$4 = [m$4], t$4 = [{ [x$4]: "Region" }];
 const _data$4 = { parameters: { Region: i$4, UseDualStack: j$4, UseFIPS: j$4, Endpoint: i$4 }, rules: [{ conditions: [{ [v$4]: b$4, [w$4]: [k$4] }], rules: [{ conditions: r$4, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d$4 }, { conditions: s$4, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d$4 }, { endpoint: { url: k$4, properties: n$4, headers: n$4 }, type: e$4 }], type: f$4 }, { conditions: [{ [v$4]: b$4, [w$4]: t$4 }], rules: [{ conditions: [{ [v$4]: "aws.partition", [w$4]: t$4, assign: g$4 }], rules: [{ conditions: [l$4, m$4], rules: [{ conditions: [{ [v$4]: c$4, [w$4]: [a$4, o$4] }, q$4], rules: [{ endpoint: { url: "https://ssm-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n$4, headers: n$4 }, type: e$4 }], type: f$4 }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d$4 }], type: f$4 }, { conditions: r$4, rules: [{ conditions: [{ [v$4]: c$4, [w$4]: [o$4, a$4] }], rules: [{ conditions: [{ [v$4]: "stringEquals", [w$4]: [{ [v$4]: h$4, [w$4]: [p$4, "name"] }, "aws-us-gov"] }], endpoint: { url: "https://ssm.{Region}.amazonaws.com", properties: n$4, headers: n$4 }, type: e$4 }, { endpoint: { url: "https://ssm-fips.{Region}.{PartitionResult#dnsSuffix}", properties: n$4, headers: n$4 }, type: e$4 }], type: f$4 }, { error: "FIPS is enabled but this partition does not support FIPS", type: d$4 }], type: f$4 }, { conditions: s$4, rules: [{ conditions: [q$4], rules: [{ endpoint: { url: "https://ssm.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n$4, headers: n$4 }, type: e$4 }], type: f$4 }, { error: "DualStack is enabled but this partition does not support DualStack", type: d$4 }], type: f$4 }, { endpoint: { url: "https://ssm.{Region}.{PartitionResult#dnsSuffix}", properties: n$4, headers: n$4 }, type: e$4 }], type: f$4 }], type: f$4 }, { error: "Invalid Configuration: Missing Region", type: d$4 }] };
@@ -38885,7 +38619,7 @@ const defaultEndpointResolver$4 = (endpointParams, context = {}) => {
         logger: context.logger,
     }));
 };
-customEndpointFunctions.aws = awsEndpointFunctions$2;
+customEndpointFunctions.aws = awsEndpointFunctions;
 
 class SSMServiceException extends ServiceException {
     constructor(options) {
@@ -41998,7 +41732,7 @@ const getRuntimeConfig$8 = (config) => {
         authSchemePreference: config?.authSchemePreference ?? loadConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
         bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
         credentialDefaultProvider: config?.credentialDefaultProvider ?? defaultProvider,
-        defaultUserAgentProvider: config?.defaultUserAgentProvider ?? createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo$2.version }),
+        defaultUserAgentProvider: config?.defaultUserAgentProvider ?? createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo$1.version }),
         maxAttempts: config?.maxAttempts ?? loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
         region: config?.region ?? loadConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
         requestHandler: NodeHttpHandler.create(config?.requestHandler ?? defaultConfigProvider),
@@ -43098,7 +42832,7 @@ const validateTokenKey = (key, value, forRefresh = false) => {
     }
 };
 
-const { writeFile } = promises;
+const { writeFile } = promises$1;
 const writeSSOTokenToFile = (id, ssoToken) => {
     const tokenFilepath = getSSOTokenFilepath(id);
     const tokenString = JSON.stringify(ssoToken, null, 2);
@@ -44053,371 +43787,111 @@ const commonParams$3 = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version$1 = "3.993.0";
-var packageInfo$1 = {
-	version: version$1};
-
-const isVirtualHostableS3Bucket$1 = (value, allowSubDomains = false) => {
-    if (allowSubDomains) {
-        for (const label of value.split(".")) {
-            if (!isVirtualHostableS3Bucket$1(label)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    if (!isValidHostLabel(value)) {
-        return false;
-    }
-    if (value.length < 3 || value.length > 63) {
-        return false;
-    }
-    if (value !== value.toLowerCase()) {
-        return false;
-    }
-    if (isIpAddress(value)) {
-        return false;
-    }
-    return true;
-};
-
-const ARN_DELIMITER$1 = ":";
-const RESOURCE_DELIMITER$1 = "/";
-const parseArn$1 = (value) => {
-    const segments = value.split(ARN_DELIMITER$1);
-    if (segments.length < 6)
-        return null;
-    const [arn, partition, service, region, accountId, ...resourcePath] = segments;
-    if (arn !== "arn" || partition === "" || service === "" || resourcePath.join(ARN_DELIMITER$1) === "")
-        return null;
-    const resourceId = resourcePath.map((resource) => resource.split(RESOURCE_DELIMITER$1)).flat();
-    return {
-        partition,
-        service,
-        region,
-        accountId,
-        resourceId,
-    };
-};
-
-var partitions$1 = [
-	{
-		id: "aws",
-		outputs: {
-			dnsSuffix: "amazonaws.com",
-			dualStackDnsSuffix: "api.aws",
-			implicitGlobalRegion: "us-east-1",
-			name: "aws",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$",
-		regions: {
-			"af-south-1": {
-				description: "Africa (Cape Town)"
-			},
-			"ap-east-1": {
-				description: "Asia Pacific (Hong Kong)"
-			},
-			"ap-east-2": {
-				description: "Asia Pacific (Taipei)"
-			},
-			"ap-northeast-1": {
-				description: "Asia Pacific (Tokyo)"
-			},
-			"ap-northeast-2": {
-				description: "Asia Pacific (Seoul)"
-			},
-			"ap-northeast-3": {
-				description: "Asia Pacific (Osaka)"
-			},
-			"ap-south-1": {
-				description: "Asia Pacific (Mumbai)"
-			},
-			"ap-south-2": {
-				description: "Asia Pacific (Hyderabad)"
-			},
-			"ap-southeast-1": {
-				description: "Asia Pacific (Singapore)"
-			},
-			"ap-southeast-2": {
-				description: "Asia Pacific (Sydney)"
-			},
-			"ap-southeast-3": {
-				description: "Asia Pacific (Jakarta)"
-			},
-			"ap-southeast-4": {
-				description: "Asia Pacific (Melbourne)"
-			},
-			"ap-southeast-5": {
-				description: "Asia Pacific (Malaysia)"
-			},
-			"ap-southeast-6": {
-				description: "Asia Pacific (New Zealand)"
-			},
-			"ap-southeast-7": {
-				description: "Asia Pacific (Thailand)"
-			},
-			"aws-global": {
-				description: "aws global region"
-			},
-			"ca-central-1": {
-				description: "Canada (Central)"
-			},
-			"ca-west-1": {
-				description: "Canada West (Calgary)"
-			},
-			"eu-central-1": {
-				description: "Europe (Frankfurt)"
-			},
-			"eu-central-2": {
-				description: "Europe (Zurich)"
-			},
-			"eu-north-1": {
-				description: "Europe (Stockholm)"
-			},
-			"eu-south-1": {
-				description: "Europe (Milan)"
-			},
-			"eu-south-2": {
-				description: "Europe (Spain)"
-			},
-			"eu-west-1": {
-				description: "Europe (Ireland)"
-			},
-			"eu-west-2": {
-				description: "Europe (London)"
-			},
-			"eu-west-3": {
-				description: "Europe (Paris)"
-			},
-			"il-central-1": {
-				description: "Israel (Tel Aviv)"
-			},
-			"me-central-1": {
-				description: "Middle East (UAE)"
-			},
-			"me-south-1": {
-				description: "Middle East (Bahrain)"
-			},
-			"mx-central-1": {
-				description: "Mexico (Central)"
-			},
-			"sa-east-1": {
-				description: "South America (Sao Paulo)"
-			},
-			"us-east-1": {
-				description: "US East (N. Virginia)"
-			},
-			"us-east-2": {
-				description: "US East (Ohio)"
-			},
-			"us-west-1": {
-				description: "US West (N. California)"
-			},
-			"us-west-2": {
-				description: "US West (Oregon)"
-			}
-		}
-	},
-	{
-		id: "aws-cn",
-		outputs: {
-			dnsSuffix: "amazonaws.com.cn",
-			dualStackDnsSuffix: "api.amazonwebservices.com.cn",
-			implicitGlobalRegion: "cn-northwest-1",
-			name: "aws-cn",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^cn\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-cn-global": {
-				description: "aws-cn global region"
-			},
-			"cn-north-1": {
-				description: "China (Beijing)"
-			},
-			"cn-northwest-1": {
-				description: "China (Ningxia)"
-			}
-		}
-	},
-	{
-		id: "aws-eusc",
-		outputs: {
-			dnsSuffix: "amazonaws.eu",
-			dualStackDnsSuffix: "api.amazonwebservices.eu",
-			implicitGlobalRegion: "eusc-de-east-1",
-			name: "aws-eusc",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^eusc\\-(de)\\-\\w+\\-\\d+$",
-		regions: {
-			"eusc-de-east-1": {
-				description: "AWS European Sovereign Cloud (Germany)"
-			}
-		}
-	},
-	{
-		id: "aws-iso",
-		outputs: {
-			dnsSuffix: "c2s.ic.gov",
-			dualStackDnsSuffix: "api.aws.ic.gov",
-			implicitGlobalRegion: "us-iso-east-1",
-			name: "aws-iso",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-iso\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-global": {
-				description: "aws-iso global region"
-			},
-			"us-iso-east-1": {
-				description: "US ISO East"
-			},
-			"us-iso-west-1": {
-				description: "US ISO WEST"
-			}
-		}
-	},
-	{
-		id: "aws-iso-b",
-		outputs: {
-			dnsSuffix: "sc2s.sgov.gov",
-			dualStackDnsSuffix: "api.aws.scloud",
-			implicitGlobalRegion: "us-isob-east-1",
-			name: "aws-iso-b",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-isob\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-b-global": {
-				description: "aws-iso-b global region"
-			},
-			"us-isob-east-1": {
-				description: "US ISOB East (Ohio)"
-			},
-			"us-isob-west-1": {
-				description: "US ISOB West"
-			}
-		}
-	},
-	{
-		id: "aws-iso-e",
-		outputs: {
-			dnsSuffix: "cloud.adc-e.uk",
-			dualStackDnsSuffix: "api.cloud-aws.adc-e.uk",
-			implicitGlobalRegion: "eu-isoe-west-1",
-			name: "aws-iso-e",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^eu\\-isoe\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-e-global": {
-				description: "aws-iso-e global region"
-			},
-			"eu-isoe-west-1": {
-				description: "EU ISOE West"
-			}
-		}
-	},
-	{
-		id: "aws-iso-f",
-		outputs: {
-			dnsSuffix: "csp.hci.ic.gov",
-			dualStackDnsSuffix: "api.aws.hci.ic.gov",
-			implicitGlobalRegion: "us-isof-south-1",
-			name: "aws-iso-f",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-isof\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-f-global": {
-				description: "aws-iso-f global region"
-			},
-			"us-isof-east-1": {
-				description: "US ISOF EAST"
-			},
-			"us-isof-south-1": {
-				description: "US ISOF SOUTH"
-			}
-		}
-	},
-	{
-		id: "aws-us-gov",
-		outputs: {
-			dnsSuffix: "amazonaws.com",
-			dualStackDnsSuffix: "api.aws",
-			implicitGlobalRegion: "us-gov-west-1",
-			name: "aws-us-gov",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-gov\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-us-gov-global": {
-				description: "aws-us-gov global region"
-			},
-			"us-gov-east-1": {
-				description: "AWS GovCloud (US-East)"
-			},
-			"us-gov-west-1": {
-				description: "AWS GovCloud (US-West)"
-			}
-		}
-	}
-];
-var partitionsInfo$1 = {
-	partitions: partitions$1};
-
-let selectedPartitionsInfo$1 = partitionsInfo$1;
-const partition$1 = (value) => {
-    const { partitions } = selectedPartitionsInfo$1;
-    for (const partition of partitions) {
-        const { regions, outputs } = partition;
-        for (const [region, regionData] of Object.entries(regions)) {
-            if (region === value) {
-                return {
-                    ...outputs,
-                    ...regionData,
-                };
-            }
-        }
-    }
-    for (const partition of partitions) {
-        const { regionRegex, outputs } = partition;
-        if (new RegExp(regionRegex).test(value)) {
-            return {
-                ...outputs,
-            };
-        }
-    }
-    const DEFAULT_PARTITION = partitions.find((partition) => partition.id === "aws");
-    if (!DEFAULT_PARTITION) {
-        throw new Error("Provided region was not found in the partition array or regex," +
-            " and default partition with id 'aws' doesn't exist.");
-    }
-    return {
-        ...DEFAULT_PARTITION.outputs,
-    };
-};
-
-const awsEndpointFunctions$1 = {
-    isVirtualHostableS3Bucket: isVirtualHostableS3Bucket$1,
-    parseArn: parseArn$1,
-    partition: partition$1,
-};
-customEndpointFunctions.aws = awsEndpointFunctions$1;
+var version = "3.996.3";
+var packageInfo = {
+	version: version};
 
 const u$3 = "required", v$3 = "fn", w$3 = "argv", x$3 = "ref";
-const a$3 = true, b$3 = "isSet", c$3 = "booleanEquals", d$3 = "error", e$3 = "endpoint", f$3 = "tree", g$3 = "PartitionResult", h$3 = "getAttr", i$3 = { [u$3]: false, "type": "string" }, j$3 = { [u$3]: true, "default": false, "type": "boolean" }, k$3 = { [x$3]: "Endpoint" }, l$3 = { [v$3]: c$3, [w$3]: [{ [x$3]: "UseFIPS" }, true] }, m$3 = { [v$3]: c$3, [w$3]: [{ [x$3]: "UseDualStack" }, true] }, n$3 = {}, o$3 = { [v$3]: h$3, [w$3]: [{ [x$3]: g$3 }, "supportsFIPS"] }, p$3 = { [x$3]: g$3 }, q$3 = { [v$3]: c$3, [w$3]: [true, { [v$3]: h$3, [w$3]: [p$3, "supportsDualStack"] }] }, r$3 = [l$3], s$3 = [m$3], t$3 = [{ [x$3]: "Region" }];
-const _data$3 = { parameters: { Region: i$3, UseDualStack: j$3, UseFIPS: j$3, Endpoint: i$3 }, rules: [{ conditions: [{ [v$3]: b$3, [w$3]: [k$3] }], rules: [{ conditions: r$3, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d$3 }, { conditions: s$3, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d$3 }, { endpoint: { url: k$3, properties: n$3, headers: n$3 }, type: e$3 }], type: f$3 }, { conditions: [{ [v$3]: b$3, [w$3]: t$3 }], rules: [{ conditions: [{ [v$3]: "aws.partition", [w$3]: t$3, assign: g$3 }], rules: [{ conditions: [l$3, m$3], rules: [{ conditions: [{ [v$3]: c$3, [w$3]: [a$3, o$3] }, q$3], rules: [{ endpoint: { url: "https://oidc-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n$3, headers: n$3 }, type: e$3 }], type: f$3 }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d$3 }], type: f$3 }, { conditions: r$3, rules: [{ conditions: [{ [v$3]: c$3, [w$3]: [o$3, a$3] }], rules: [{ conditions: [{ [v$3]: "stringEquals", [w$3]: [{ [v$3]: h$3, [w$3]: [p$3, "name"] }, "aws-us-gov"] }], endpoint: { url: "https://oidc.{Region}.amazonaws.com", properties: n$3, headers: n$3 }, type: e$3 }, { endpoint: { url: "https://oidc-fips.{Region}.{PartitionResult#dnsSuffix}", properties: n$3, headers: n$3 }, type: e$3 }], type: f$3 }, { error: "FIPS is enabled but this partition does not support FIPS", type: d$3 }], type: f$3 }, { conditions: s$3, rules: [{ conditions: [q$3], rules: [{ endpoint: { url: "https://oidc.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n$3, headers: n$3 }, type: e$3 }], type: f$3 }, { error: "DualStack is enabled but this partition does not support DualStack", type: d$3 }], type: f$3 }, { endpoint: { url: "https://oidc.{Region}.{PartitionResult#dnsSuffix}", properties: n$3, headers: n$3 }, type: e$3 }], type: f$3 }], type: f$3 }, { error: "Invalid Configuration: Missing Region", type: d$3 }] };
+const a$3 = true, b$3 = "isSet", c$3 = "booleanEquals", d$3 = "error", e$3 = "endpoint", f$3 = "tree", g$3 = "PartitionResult", h$3 = "getAttr", i$3 = { [u$3]: false, type: "string" }, j$3 = { [u$3]: true, default: false, type: "boolean" }, k$3 = { [x$3]: "Endpoint" }, l$3 = { [v$3]: c$3, [w$3]: [{ [x$3]: "UseFIPS" }, true] }, m$3 = { [v$3]: c$3, [w$3]: [{ [x$3]: "UseDualStack" }, true] }, n$3 = {}, o$3 = { [v$3]: h$3, [w$3]: [{ [x$3]: g$3 }, "supportsFIPS"] }, p$3 = { [x$3]: g$3 }, q$3 = { [v$3]: c$3, [w$3]: [true, { [v$3]: h$3, [w$3]: [p$3, "supportsDualStack"] }] }, r$3 = [l$3], s$3 = [m$3], t$3 = [{ [x$3]: "Region" }];
+const _data$3 = {
+    parameters: { Region: i$3, UseDualStack: j$3, UseFIPS: j$3, Endpoint: i$3 },
+    rules: [
+        {
+            conditions: [{ [v$3]: b$3, [w$3]: [k$3] }],
+            rules: [
+                { conditions: r$3, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d$3 },
+                { conditions: s$3, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d$3 },
+                { endpoint: { url: k$3, properties: n$3, headers: n$3 }, type: e$3 },
+            ],
+            type: f$3,
+        },
+        {
+            conditions: [{ [v$3]: b$3, [w$3]: t$3 }],
+            rules: [
+                {
+                    conditions: [{ [v$3]: "aws.partition", [w$3]: t$3, assign: g$3 }],
+                    rules: [
+                        {
+                            conditions: [l$3, m$3],
+                            rules: [
+                                {
+                                    conditions: [{ [v$3]: c$3, [w$3]: [a$3, o$3] }, q$3],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://oidc-fips.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: n$3,
+                                                headers: n$3,
+                                            },
+                                            type: e$3,
+                                        },
+                                    ],
+                                    type: f$3,
+                                },
+                                { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d$3 },
+                            ],
+                            type: f$3,
+                        },
+                        {
+                            conditions: r$3,
+                            rules: [
+                                {
+                                    conditions: [{ [v$3]: c$3, [w$3]: [o$3, a$3] }],
+                                    rules: [
+                                        {
+                                            conditions: [{ [v$3]: "stringEquals", [w$3]: [{ [v$3]: h$3, [w$3]: [p$3, "name"] }, "aws-us-gov"] }],
+                                            endpoint: { url: "https://oidc.{Region}.amazonaws.com", properties: n$3, headers: n$3 },
+                                            type: e$3,
+                                        },
+                                        {
+                                            endpoint: {
+                                                url: "https://oidc-fips.{Region}.{PartitionResult#dnsSuffix}",
+                                                properties: n$3,
+                                                headers: n$3,
+                                            },
+                                            type: e$3,
+                                        },
+                                    ],
+                                    type: f$3,
+                                },
+                                { error: "FIPS is enabled but this partition does not support FIPS", type: d$3 },
+                            ],
+                            type: f$3,
+                        },
+                        {
+                            conditions: s$3,
+                            rules: [
+                                {
+                                    conditions: [q$3],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://oidc.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: n$3,
+                                                headers: n$3,
+                                            },
+                                            type: e$3,
+                                        },
+                                    ],
+                                    type: f$3,
+                                },
+                                { error: "DualStack is enabled but this partition does not support DualStack", type: d$3 },
+                            ],
+                            type: f$3,
+                        },
+                        {
+                            endpoint: { url: "https://oidc.{Region}.{PartitionResult#dnsSuffix}", properties: n$3, headers: n$3 },
+                            type: e$3,
+                        },
+                    ],
+                    type: f$3,
+                },
+            ],
+            type: f$3,
+        },
+        { error: "Invalid Configuration: Missing Region", type: d$3 },
+    ],
+};
 const ruleSet$3 = _data$3;
 
 const cache$3 = new EndpointCache({
@@ -44430,7 +43904,7 @@ const defaultEndpointResolver$3 = (endpointParams, context = {}) => {
         logger: context.logger,
     }));
 };
-customEndpointFunctions.aws = awsEndpointFunctions$1;
+customEndpointFunctions.aws = awsEndpointFunctions;
 
 class SSOOIDCServiceException extends ServiceException {
     constructor(options) {
@@ -44808,7 +44282,7 @@ const getRuntimeConfig$6 = (config) => {
         authSchemePreference: config?.authSchemePreference ?? loadConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
         bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
         defaultUserAgentProvider: config?.defaultUserAgentProvider ??
-            createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo$1.version }),
+            createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
         maxAttempts: config?.maxAttempts ?? loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
         region: config?.region ??
             loadConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
@@ -44957,9 +44431,10 @@ var index$2 = /*#__PURE__*/Object.freeze({
 const defaultSSOHttpAuthSchemeParametersProvider = async (config, context, input) => {
     return {
         operation: getSmithyContext(context).operation,
-        region: await normalizeProvider$1(config.region)() || (() => {
-            throw new Error("expected `region` to be configured for `aws.auth#sigv4`");
-        })(),
+        region: (await normalizeProvider$1(config.region)()) ||
+            (() => {
+                throw new Error("expected `region` to be configured for `aws.auth#sigv4`");
+            })(),
     };
 };
 function createAwsAuthSigv4HttpAuthOption$2(authParameters) {
@@ -44985,26 +44460,10 @@ function createSmithyApiNoAuthHttpAuthOption$2(authParameters) {
 const defaultSSOHttpAuthSchemeProvider = (authParameters) => {
     const options = [];
     switch (authParameters.operation) {
-        case "GetRoleCredentials":
-            {
-                options.push(createSmithyApiNoAuthHttpAuthOption$2());
-                break;
-            }
-        case "ListAccountRoles":
-            {
-                options.push(createSmithyApiNoAuthHttpAuthOption$2());
-                break;
-            }
-        case "ListAccounts":
-            {
-                options.push(createSmithyApiNoAuthHttpAuthOption$2());
-                break;
-            }
-        case "Logout":
-            {
-                options.push(createSmithyApiNoAuthHttpAuthOption$2());
-                break;
-            }
+        case "GetRoleCredentials": {
+            options.push(createSmithyApiNoAuthHttpAuthOption$2());
+            break;
+        }
         default: {
             options.push(createAwsAuthSigv4HttpAuthOption$2(authParameters));
         }
@@ -45032,371 +44491,107 @@ const commonParams$2 = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.993.0";
-var packageInfo = {
-	version: version};
-
-const isVirtualHostableS3Bucket = (value, allowSubDomains = false) => {
-    if (allowSubDomains) {
-        for (const label of value.split(".")) {
-            if (!isVirtualHostableS3Bucket(label)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    if (!isValidHostLabel(value)) {
-        return false;
-    }
-    if (value.length < 3 || value.length > 63) {
-        return false;
-    }
-    if (value !== value.toLowerCase()) {
-        return false;
-    }
-    if (isIpAddress(value)) {
-        return false;
-    }
-    return true;
-};
-
-const ARN_DELIMITER = ":";
-const RESOURCE_DELIMITER = "/";
-const parseArn = (value) => {
-    const segments = value.split(ARN_DELIMITER);
-    if (segments.length < 6)
-        return null;
-    const [arn, partition, service, region, accountId, ...resourcePath] = segments;
-    if (arn !== "arn" || partition === "" || service === "" || resourcePath.join(ARN_DELIMITER) === "")
-        return null;
-    const resourceId = resourcePath.map((resource) => resource.split(RESOURCE_DELIMITER)).flat();
-    return {
-        partition,
-        service,
-        region,
-        accountId,
-        resourceId,
-    };
-};
-
-var partitions = [
-	{
-		id: "aws",
-		outputs: {
-			dnsSuffix: "amazonaws.com",
-			dualStackDnsSuffix: "api.aws",
-			implicitGlobalRegion: "us-east-1",
-			name: "aws",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$",
-		regions: {
-			"af-south-1": {
-				description: "Africa (Cape Town)"
-			},
-			"ap-east-1": {
-				description: "Asia Pacific (Hong Kong)"
-			},
-			"ap-east-2": {
-				description: "Asia Pacific (Taipei)"
-			},
-			"ap-northeast-1": {
-				description: "Asia Pacific (Tokyo)"
-			},
-			"ap-northeast-2": {
-				description: "Asia Pacific (Seoul)"
-			},
-			"ap-northeast-3": {
-				description: "Asia Pacific (Osaka)"
-			},
-			"ap-south-1": {
-				description: "Asia Pacific (Mumbai)"
-			},
-			"ap-south-2": {
-				description: "Asia Pacific (Hyderabad)"
-			},
-			"ap-southeast-1": {
-				description: "Asia Pacific (Singapore)"
-			},
-			"ap-southeast-2": {
-				description: "Asia Pacific (Sydney)"
-			},
-			"ap-southeast-3": {
-				description: "Asia Pacific (Jakarta)"
-			},
-			"ap-southeast-4": {
-				description: "Asia Pacific (Melbourne)"
-			},
-			"ap-southeast-5": {
-				description: "Asia Pacific (Malaysia)"
-			},
-			"ap-southeast-6": {
-				description: "Asia Pacific (New Zealand)"
-			},
-			"ap-southeast-7": {
-				description: "Asia Pacific (Thailand)"
-			},
-			"aws-global": {
-				description: "aws global region"
-			},
-			"ca-central-1": {
-				description: "Canada (Central)"
-			},
-			"ca-west-1": {
-				description: "Canada West (Calgary)"
-			},
-			"eu-central-1": {
-				description: "Europe (Frankfurt)"
-			},
-			"eu-central-2": {
-				description: "Europe (Zurich)"
-			},
-			"eu-north-1": {
-				description: "Europe (Stockholm)"
-			},
-			"eu-south-1": {
-				description: "Europe (Milan)"
-			},
-			"eu-south-2": {
-				description: "Europe (Spain)"
-			},
-			"eu-west-1": {
-				description: "Europe (Ireland)"
-			},
-			"eu-west-2": {
-				description: "Europe (London)"
-			},
-			"eu-west-3": {
-				description: "Europe (Paris)"
-			},
-			"il-central-1": {
-				description: "Israel (Tel Aviv)"
-			},
-			"me-central-1": {
-				description: "Middle East (UAE)"
-			},
-			"me-south-1": {
-				description: "Middle East (Bahrain)"
-			},
-			"mx-central-1": {
-				description: "Mexico (Central)"
-			},
-			"sa-east-1": {
-				description: "South America (Sao Paulo)"
-			},
-			"us-east-1": {
-				description: "US East (N. Virginia)"
-			},
-			"us-east-2": {
-				description: "US East (Ohio)"
-			},
-			"us-west-1": {
-				description: "US West (N. California)"
-			},
-			"us-west-2": {
-				description: "US West (Oregon)"
-			}
-		}
-	},
-	{
-		id: "aws-cn",
-		outputs: {
-			dnsSuffix: "amazonaws.com.cn",
-			dualStackDnsSuffix: "api.amazonwebservices.com.cn",
-			implicitGlobalRegion: "cn-northwest-1",
-			name: "aws-cn",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^cn\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-cn-global": {
-				description: "aws-cn global region"
-			},
-			"cn-north-1": {
-				description: "China (Beijing)"
-			},
-			"cn-northwest-1": {
-				description: "China (Ningxia)"
-			}
-		}
-	},
-	{
-		id: "aws-eusc",
-		outputs: {
-			dnsSuffix: "amazonaws.eu",
-			dualStackDnsSuffix: "api.amazonwebservices.eu",
-			implicitGlobalRegion: "eusc-de-east-1",
-			name: "aws-eusc",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^eusc\\-(de)\\-\\w+\\-\\d+$",
-		regions: {
-			"eusc-de-east-1": {
-				description: "AWS European Sovereign Cloud (Germany)"
-			}
-		}
-	},
-	{
-		id: "aws-iso",
-		outputs: {
-			dnsSuffix: "c2s.ic.gov",
-			dualStackDnsSuffix: "api.aws.ic.gov",
-			implicitGlobalRegion: "us-iso-east-1",
-			name: "aws-iso",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-iso\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-global": {
-				description: "aws-iso global region"
-			},
-			"us-iso-east-1": {
-				description: "US ISO East"
-			},
-			"us-iso-west-1": {
-				description: "US ISO WEST"
-			}
-		}
-	},
-	{
-		id: "aws-iso-b",
-		outputs: {
-			dnsSuffix: "sc2s.sgov.gov",
-			dualStackDnsSuffix: "api.aws.scloud",
-			implicitGlobalRegion: "us-isob-east-1",
-			name: "aws-iso-b",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-isob\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-b-global": {
-				description: "aws-iso-b global region"
-			},
-			"us-isob-east-1": {
-				description: "US ISOB East (Ohio)"
-			},
-			"us-isob-west-1": {
-				description: "US ISOB West"
-			}
-		}
-	},
-	{
-		id: "aws-iso-e",
-		outputs: {
-			dnsSuffix: "cloud.adc-e.uk",
-			dualStackDnsSuffix: "api.cloud-aws.adc-e.uk",
-			implicitGlobalRegion: "eu-isoe-west-1",
-			name: "aws-iso-e",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^eu\\-isoe\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-e-global": {
-				description: "aws-iso-e global region"
-			},
-			"eu-isoe-west-1": {
-				description: "EU ISOE West"
-			}
-		}
-	},
-	{
-		id: "aws-iso-f",
-		outputs: {
-			dnsSuffix: "csp.hci.ic.gov",
-			dualStackDnsSuffix: "api.aws.hci.ic.gov",
-			implicitGlobalRegion: "us-isof-south-1",
-			name: "aws-iso-f",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-isof\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-iso-f-global": {
-				description: "aws-iso-f global region"
-			},
-			"us-isof-east-1": {
-				description: "US ISOF EAST"
-			},
-			"us-isof-south-1": {
-				description: "US ISOF SOUTH"
-			}
-		}
-	},
-	{
-		id: "aws-us-gov",
-		outputs: {
-			dnsSuffix: "amazonaws.com",
-			dualStackDnsSuffix: "api.aws",
-			implicitGlobalRegion: "us-gov-west-1",
-			name: "aws-us-gov",
-			supportsDualStack: true,
-			supportsFIPS: true
-		},
-		regionRegex: "^us\\-gov\\-\\w+\\-\\d+$",
-		regions: {
-			"aws-us-gov-global": {
-				description: "aws-us-gov global region"
-			},
-			"us-gov-east-1": {
-				description: "AWS GovCloud (US-East)"
-			},
-			"us-gov-west-1": {
-				description: "AWS GovCloud (US-West)"
-			}
-		}
-	}
-];
-var partitionsInfo = {
-	partitions: partitions};
-
-let selectedPartitionsInfo = partitionsInfo;
-const partition = (value) => {
-    const { partitions } = selectedPartitionsInfo;
-    for (const partition of partitions) {
-        const { regions, outputs } = partition;
-        for (const [region, regionData] of Object.entries(regions)) {
-            if (region === value) {
-                return {
-                    ...outputs,
-                    ...regionData,
-                };
-            }
-        }
-    }
-    for (const partition of partitions) {
-        const { regionRegex, outputs } = partition;
-        if (new RegExp(regionRegex).test(value)) {
-            return {
-                ...outputs,
-            };
-        }
-    }
-    const DEFAULT_PARTITION = partitions.find((partition) => partition.id === "aws");
-    if (!DEFAULT_PARTITION) {
-        throw new Error("Provided region was not found in the partition array or regex," +
-            " and default partition with id 'aws' doesn't exist.");
-    }
-    return {
-        ...DEFAULT_PARTITION.outputs,
-    };
-};
-
-const awsEndpointFunctions = {
-    isVirtualHostableS3Bucket: isVirtualHostableS3Bucket,
-    parseArn: parseArn,
-    partition: partition,
-};
-customEndpointFunctions.aws = awsEndpointFunctions;
-
 const u$2 = "required", v$2 = "fn", w$2 = "argv", x$2 = "ref";
-const a$2 = true, b$2 = "isSet", c$2 = "booleanEquals", d$2 = "error", e$2 = "endpoint", f$2 = "tree", g$2 = "PartitionResult", h$2 = "getAttr", i$2 = { [u$2]: false, "type": "string" }, j$2 = { [u$2]: true, "default": false, "type": "boolean" }, k$2 = { [x$2]: "Endpoint" }, l$2 = { [v$2]: c$2, [w$2]: [{ [x$2]: "UseFIPS" }, true] }, m$2 = { [v$2]: c$2, [w$2]: [{ [x$2]: "UseDualStack" }, true] }, n$2 = {}, o$2 = { [v$2]: h$2, [w$2]: [{ [x$2]: g$2 }, "supportsFIPS"] }, p$2 = { [x$2]: g$2 }, q$2 = { [v$2]: c$2, [w$2]: [true, { [v$2]: h$2, [w$2]: [p$2, "supportsDualStack"] }] }, r$2 = [l$2], s$2 = [m$2], t$2 = [{ [x$2]: "Region" }];
-const _data$2 = { parameters: { Region: i$2, UseDualStack: j$2, UseFIPS: j$2, Endpoint: i$2 }, rules: [{ conditions: [{ [v$2]: b$2, [w$2]: [k$2] }], rules: [{ conditions: r$2, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d$2 }, { conditions: s$2, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d$2 }, { endpoint: { url: k$2, properties: n$2, headers: n$2 }, type: e$2 }], type: f$2 }, { conditions: [{ [v$2]: b$2, [w$2]: t$2 }], rules: [{ conditions: [{ [v$2]: "aws.partition", [w$2]: t$2, assign: g$2 }], rules: [{ conditions: [l$2, m$2], rules: [{ conditions: [{ [v$2]: c$2, [w$2]: [a$2, o$2] }, q$2], rules: [{ endpoint: { url: "https://portal.sso-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n$2, headers: n$2 }, type: e$2 }], type: f$2 }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d$2 }], type: f$2 }, { conditions: r$2, rules: [{ conditions: [{ [v$2]: c$2, [w$2]: [o$2, a$2] }], rules: [{ conditions: [{ [v$2]: "stringEquals", [w$2]: [{ [v$2]: h$2, [w$2]: [p$2, "name"] }, "aws-us-gov"] }], endpoint: { url: "https://portal.sso.{Region}.amazonaws.com", properties: n$2, headers: n$2 }, type: e$2 }, { endpoint: { url: "https://portal.sso-fips.{Region}.{PartitionResult#dnsSuffix}", properties: n$2, headers: n$2 }, type: e$2 }], type: f$2 }, { error: "FIPS is enabled but this partition does not support FIPS", type: d$2 }], type: f$2 }, { conditions: s$2, rules: [{ conditions: [q$2], rules: [{ endpoint: { url: "https://portal.sso.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n$2, headers: n$2 }, type: e$2 }], type: f$2 }, { error: "DualStack is enabled but this partition does not support DualStack", type: d$2 }], type: f$2 }, { endpoint: { url: "https://portal.sso.{Region}.{PartitionResult#dnsSuffix}", properties: n$2, headers: n$2 }, type: e$2 }], type: f$2 }], type: f$2 }, { error: "Invalid Configuration: Missing Region", type: d$2 }] };
+const a$2 = true, b$2 = "isSet", c$2 = "booleanEquals", d$2 = "error", e$2 = "endpoint", f$2 = "tree", g$2 = "PartitionResult", h$2 = "getAttr", i$2 = { [u$2]: false, type: "string" }, j$2 = { [u$2]: true, default: false, type: "boolean" }, k$2 = { [x$2]: "Endpoint" }, l$2 = { [v$2]: c$2, [w$2]: [{ [x$2]: "UseFIPS" }, true] }, m$2 = { [v$2]: c$2, [w$2]: [{ [x$2]: "UseDualStack" }, true] }, n$2 = {}, o$2 = { [v$2]: h$2, [w$2]: [{ [x$2]: g$2 }, "supportsFIPS"] }, p$2 = { [x$2]: g$2 }, q$2 = { [v$2]: c$2, [w$2]: [true, { [v$2]: h$2, [w$2]: [p$2, "supportsDualStack"] }] }, r$2 = [l$2], s$2 = [m$2], t$2 = [{ [x$2]: "Region" }];
+const _data$2 = {
+    parameters: { Region: i$2, UseDualStack: j$2, UseFIPS: j$2, Endpoint: i$2 },
+    rules: [
+        {
+            conditions: [{ [v$2]: b$2, [w$2]: [k$2] }],
+            rules: [
+                { conditions: r$2, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d$2 },
+                { conditions: s$2, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d$2 },
+                { endpoint: { url: k$2, properties: n$2, headers: n$2 }, type: e$2 },
+            ],
+            type: f$2,
+        },
+        {
+            conditions: [{ [v$2]: b$2, [w$2]: t$2 }],
+            rules: [
+                {
+                    conditions: [{ [v$2]: "aws.partition", [w$2]: t$2, assign: g$2 }],
+                    rules: [
+                        {
+                            conditions: [l$2, m$2],
+                            rules: [
+                                {
+                                    conditions: [{ [v$2]: c$2, [w$2]: [a$2, o$2] }, q$2],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://portal.sso-fips.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: n$2,
+                                                headers: n$2,
+                                            },
+                                            type: e$2,
+                                        },
+                                    ],
+                                    type: f$2,
+                                },
+                                { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d$2 },
+                            ],
+                            type: f$2,
+                        },
+                        {
+                            conditions: r$2,
+                            rules: [
+                                {
+                                    conditions: [{ [v$2]: c$2, [w$2]: [o$2, a$2] }],
+                                    rules: [
+                                        {
+                                            conditions: [{ [v$2]: "stringEquals", [w$2]: [{ [v$2]: h$2, [w$2]: [p$2, "name"] }, "aws-us-gov"] }],
+                                            endpoint: { url: "https://portal.sso.{Region}.amazonaws.com", properties: n$2, headers: n$2 },
+                                            type: e$2,
+                                        },
+                                        {
+                                            endpoint: {
+                                                url: "https://portal.sso-fips.{Region}.{PartitionResult#dnsSuffix}",
+                                                properties: n$2,
+                                                headers: n$2,
+                                            },
+                                            type: e$2,
+                                        },
+                                    ],
+                                    type: f$2,
+                                },
+                                { error: "FIPS is enabled but this partition does not support FIPS", type: d$2 },
+                            ],
+                            type: f$2,
+                        },
+                        {
+                            conditions: s$2,
+                            rules: [
+                                {
+                                    conditions: [q$2],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://portal.sso.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: n$2,
+                                                headers: n$2,
+                                            },
+                                            type: e$2,
+                                        },
+                                    ],
+                                    type: f$2,
+                                },
+                                { error: "DualStack is enabled but this partition does not support DualStack", type: d$2 },
+                            ],
+                            type: f$2,
+                        },
+                        {
+                            endpoint: { url: "https://portal.sso.{Region}.{PartitionResult#dnsSuffix}", properties: n$2, headers: n$2 },
+                            type: e$2,
+                        },
+                    ],
+                    type: f$2,
+                },
+            ],
+            type: f$2,
+        },
+        { error: "Invalid Configuration: Missing Region", type: d$2 },
+    ],
+};
 const ruleSet$2 = _data$2;
 
 const cache$2 = new EndpointCache({
@@ -45502,54 +44697,54 @@ const _s_registry$2 = TypeRegistry.for(_s$2);
 var SSOServiceException$ = [-3, _s$2, "SSOServiceException", 0, [], []];
 _s_registry$2.registerError(SSOServiceException$, SSOServiceException);
 const n0_registry$2 = TypeRegistry.for(n0$2);
-var InvalidRequestException$ = [-3, n0$2, _IRE,
-    { [_e$2]: _c$2, [_hE$2]: 400 },
-    [_m$2],
-    [0]
-];
+var InvalidRequestException$ = [-3, n0$2, _IRE, { [_e$2]: _c$2, [_hE$2]: 400 }, [_m$2], [0]];
 n0_registry$2.registerError(InvalidRequestException$, InvalidRequestException);
-var ResourceNotFoundException$ = [-3, n0$2, _RNFE,
-    { [_e$2]: _c$2, [_hE$2]: 404 },
-    [_m$2],
-    [0]
-];
+var ResourceNotFoundException$ = [-3, n0$2, _RNFE, { [_e$2]: _c$2, [_hE$2]: 404 }, [_m$2], [0]];
 n0_registry$2.registerError(ResourceNotFoundException$, ResourceNotFoundException);
-var TooManyRequestsException$ = [-3, n0$2, _TMRE$1,
-    { [_e$2]: _c$2, [_hE$2]: 429 },
-    [_m$2],
-    [0]
-];
+var TooManyRequestsException$ = [-3, n0$2, _TMRE$1, { [_e$2]: _c$2, [_hE$2]: 429 }, [_m$2], [0]];
 n0_registry$2.registerError(TooManyRequestsException$, TooManyRequestsException);
-var UnauthorizedException$ = [-3, n0$2, _UE,
-    { [_e$2]: _c$2, [_hE$2]: 401 },
-    [_m$2],
-    [0]
-];
+var UnauthorizedException$ = [-3, n0$2, _UE, { [_e$2]: _c$2, [_hE$2]: 401 }, [_m$2], [0]];
 n0_registry$2.registerError(UnauthorizedException$, UnauthorizedException);
-const errorTypeRegistries$2 = [
-    _s_registry$2,
-    n0_registry$2,
-];
+const errorTypeRegistries$2 = [_s_registry$2, n0_registry$2];
 var AccessTokenType = [0, n0$2, _ATT, 8, 0];
 var SecretAccessKeyType = [0, n0$2, _SAKT, 8, 0];
 var SessionTokenType = [0, n0$2, _STT, 8, 0];
-var GetRoleCredentialsRequest$ = [3, n0$2, _GRCR,
+var GetRoleCredentialsRequest$ = [
+    3,
+    n0$2,
+    _GRCR,
     0,
     [_rN, _aI, _aT$1],
-    [[0, { [_hQ]: _rn }], [0, { [_hQ]: _ai }], [() => AccessTokenType, { [_hH]: _xasbt }]], 3
+    [
+        [0, { [_hQ]: _rn }],
+        [0, { [_hQ]: _ai }],
+        [() => AccessTokenType, { [_hH]: _xasbt }],
+    ],
+    3,
 ];
-var GetRoleCredentialsResponse$ = [3, n0$2, _GRCRe,
+var GetRoleCredentialsResponse$ = [
+    3,
+    n0$2,
+    _GRCRe,
     0,
     [_rC],
-    [[() => RoleCredentials$, 0]]
+    [[() => RoleCredentials$, 0]],
 ];
-var RoleCredentials$ = [3, n0$2, _RC,
+var RoleCredentials$ = [
+    3,
+    n0$2,
+    _RC,
     0,
     [_aKI$1, _sAK$1, _sT$1, _ex],
-    [0, [() => SecretAccessKeyType, 0], [() => SessionTokenType, 0], 1]
+    [0, [() => SecretAccessKeyType, 0], [() => SessionTokenType, 0], 1],
 ];
-var GetRoleCredentials$ = [9, n0$2, _GRC,
-    { [_h$1]: ["GET", "/federation/credentials", 200] }, () => GetRoleCredentialsRequest$, () => GetRoleCredentialsResponse$
+var GetRoleCredentials$ = [
+    9,
+    n0$2,
+    _GRC,
+    { [_h$1]: ["GET", "/federation/credentials", 200] },
+    () => GetRoleCredentialsRequest$,
+    () => GetRoleCredentialsResponse$,
 ];
 
 const getRuntimeConfig$5 = (config) => {
@@ -45605,9 +44800,11 @@ const getRuntimeConfig$4 = (config) => {
         defaultsMode,
         authSchemePreference: config?.authSchemePreference ?? loadConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
         bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
-        defaultUserAgentProvider: config?.defaultUserAgentProvider ?? createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
+        defaultUserAgentProvider: config?.defaultUserAgentProvider ??
+            createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
         maxAttempts: config?.maxAttempts ?? loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
-        region: config?.region ?? loadConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
+        region: config?.region ??
+            loadConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
         requestHandler: NodeHttpHandler.create(config?.requestHandler ?? defaultConfigProvider),
         retryMode: config?.retryMode ??
             loadConfig({
@@ -45790,8 +44987,145 @@ const commonParams$1 = {
 };
 
 const F = "required", G = "type", H = "fn", I = "argv", J = "ref";
-const a$1 = false, b$1 = true, c$1 = "booleanEquals", d$1 = "stringEquals", e$1 = "sigv4", f$1 = "sts", g$1 = "us-east-1", h$1 = "endpoint", i$1 = "https://sts.{Region}.{PartitionResult#dnsSuffix}", j$1 = "tree", k$1 = "error", l$1 = "getAttr", m$1 = { [F]: false, [G]: "string" }, n$1 = { [F]: true, "default": false, [G]: "boolean" }, o$1 = { [J]: "Endpoint" }, p$1 = { [H]: "isSet", [I]: [{ [J]: "Region" }] }, q$1 = { [J]: "Region" }, r$1 = { [H]: "aws.partition", [I]: [q$1], "assign": "PartitionResult" }, s$1 = { [J]: "UseFIPS" }, t$1 = { [J]: "UseDualStack" }, u$1 = { "url": "https://sts.amazonaws.com", "properties": { "authSchemes": [{ "name": e$1, "signingName": f$1, "signingRegion": g$1 }] }, "headers": {} }, v$1 = {}, w$1 = { "conditions": [{ [H]: d$1, [I]: [q$1, "aws-global"] }], [h$1]: u$1, [G]: h$1 }, x$1 = { [H]: c$1, [I]: [s$1, true] }, y = { [H]: c$1, [I]: [t$1, true] }, z = { [H]: l$1, [I]: [{ [J]: "PartitionResult" }, "supportsFIPS"] }, A = { [J]: "PartitionResult" }, B = { [H]: c$1, [I]: [true, { [H]: l$1, [I]: [A, "supportsDualStack"] }] }, C = [{ [H]: "isSet", [I]: [o$1] }], D = [x$1], E = [y];
-const _data$1 = { parameters: { Region: m$1, UseDualStack: n$1, UseFIPS: n$1, Endpoint: m$1, UseGlobalEndpoint: n$1 }, rules: [{ conditions: [{ [H]: c$1, [I]: [{ [J]: "UseGlobalEndpoint" }, b$1] }, { [H]: "not", [I]: C }, p$1, r$1, { [H]: c$1, [I]: [s$1, a$1] }, { [H]: c$1, [I]: [t$1, a$1] }], rules: [{ conditions: [{ [H]: d$1, [I]: [q$1, "ap-northeast-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "ap-south-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "ap-southeast-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "ap-southeast-2"] }], endpoint: u$1, [G]: h$1 }, w$1, { conditions: [{ [H]: d$1, [I]: [q$1, "ca-central-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "eu-central-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "eu-north-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "eu-west-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "eu-west-2"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "eu-west-3"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "sa-east-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, g$1] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "us-east-2"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "us-west-1"] }], endpoint: u$1, [G]: h$1 }, { conditions: [{ [H]: d$1, [I]: [q$1, "us-west-2"] }], endpoint: u$1, [G]: h$1 }, { endpoint: { url: i$1, properties: { authSchemes: [{ name: e$1, signingName: f$1, signingRegion: "{Region}" }] }, headers: v$1 }, [G]: h$1 }], [G]: j$1 }, { conditions: C, rules: [{ conditions: D, error: "Invalid Configuration: FIPS and custom endpoint are not supported", [G]: k$1 }, { conditions: E, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", [G]: k$1 }, { endpoint: { url: o$1, properties: v$1, headers: v$1 }, [G]: h$1 }], [G]: j$1 }, { conditions: [p$1], rules: [{ conditions: [r$1], rules: [{ conditions: [x$1, y], rules: [{ conditions: [{ [H]: c$1, [I]: [b$1, z] }, B], rules: [{ endpoint: { url: "https://sts-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: v$1, headers: v$1 }, [G]: h$1 }], [G]: j$1 }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", [G]: k$1 }], [G]: j$1 }, { conditions: D, rules: [{ conditions: [{ [H]: c$1, [I]: [z, b$1] }], rules: [{ conditions: [{ [H]: d$1, [I]: [{ [H]: l$1, [I]: [A, "name"] }, "aws-us-gov"] }], endpoint: { url: "https://sts.{Region}.amazonaws.com", properties: v$1, headers: v$1 }, [G]: h$1 }, { endpoint: { url: "https://sts-fips.{Region}.{PartitionResult#dnsSuffix}", properties: v$1, headers: v$1 }, [G]: h$1 }], [G]: j$1 }, { error: "FIPS is enabled but this partition does not support FIPS", [G]: k$1 }], [G]: j$1 }, { conditions: E, rules: [{ conditions: [B], rules: [{ endpoint: { url: "https://sts.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: v$1, headers: v$1 }, [G]: h$1 }], [G]: j$1 }, { error: "DualStack is enabled but this partition does not support DualStack", [G]: k$1 }], [G]: j$1 }, w$1, { endpoint: { url: i$1, properties: v$1, headers: v$1 }, [G]: h$1 }], [G]: j$1 }], [G]: j$1 }, { error: "Invalid Configuration: Missing Region", [G]: k$1 }] };
+const a$1 = false, b$1 = true, c$1 = "booleanEquals", d$1 = "stringEquals", e$1 = "sigv4", f$1 = "sts", g$1 = "us-east-1", h$1 = "endpoint", i$1 = "https://sts.{Region}.{PartitionResult#dnsSuffix}", j$1 = "tree", k$1 = "error", l$1 = "getAttr", m$1 = { [F]: false, [G]: "string" }, n$1 = { [F]: true, default: false, [G]: "boolean" }, o$1 = { [J]: "Endpoint" }, p$1 = { [H]: "isSet", [I]: [{ [J]: "Region" }] }, q$1 = { [J]: "Region" }, r$1 = { [H]: "aws.partition", [I]: [q$1], assign: "PartitionResult" }, s$1 = { [J]: "UseFIPS" }, t$1 = { [J]: "UseDualStack" }, u$1 = {
+    url: "https://sts.amazonaws.com",
+    properties: { authSchemes: [{ name: e$1, signingName: f$1, signingRegion: g$1 }] },
+    headers: {},
+}, v$1 = {}, w$1 = { conditions: [{ [H]: d$1, [I]: [q$1, "aws-global"] }], [h$1]: u$1, [G]: h$1 }, x$1 = { [H]: c$1, [I]: [s$1, true] }, y = { [H]: c$1, [I]: [t$1, true] }, z = { [H]: l$1, [I]: [{ [J]: "PartitionResult" }, "supportsFIPS"] }, A = { [J]: "PartitionResult" }, B = { [H]: c$1, [I]: [true, { [H]: l$1, [I]: [A, "supportsDualStack"] }] }, C = [{ [H]: "isSet", [I]: [o$1] }], D = [x$1], E = [y];
+const _data$1 = {
+    parameters: { Region: m$1, UseDualStack: n$1, UseFIPS: n$1, Endpoint: m$1, UseGlobalEndpoint: n$1 },
+    rules: [
+        {
+            conditions: [
+                { [H]: c$1, [I]: [{ [J]: "UseGlobalEndpoint" }, b$1] },
+                { [H]: "not", [I]: C },
+                p$1,
+                r$1,
+                { [H]: c$1, [I]: [s$1, a$1] },
+                { [H]: c$1, [I]: [t$1, a$1] },
+            ],
+            rules: [
+                { conditions: [{ [H]: d$1, [I]: [q$1, "ap-northeast-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "ap-south-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "ap-southeast-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "ap-southeast-2"] }], endpoint: u$1, [G]: h$1 },
+                w$1,
+                { conditions: [{ [H]: d$1, [I]: [q$1, "ca-central-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "eu-central-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "eu-north-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "eu-west-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "eu-west-2"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "eu-west-3"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "sa-east-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, g$1] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "us-east-2"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "us-west-1"] }], endpoint: u$1, [G]: h$1 },
+                { conditions: [{ [H]: d$1, [I]: [q$1, "us-west-2"] }], endpoint: u$1, [G]: h$1 },
+                {
+                    endpoint: {
+                        url: i$1,
+                        properties: { authSchemes: [{ name: e$1, signingName: f$1, signingRegion: "{Region}" }] },
+                        headers: v$1,
+                    },
+                    [G]: h$1,
+                },
+            ],
+            [G]: j$1,
+        },
+        {
+            conditions: C,
+            rules: [
+                { conditions: D, error: "Invalid Configuration: FIPS and custom endpoint are not supported", [G]: k$1 },
+                { conditions: E, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", [G]: k$1 },
+                { endpoint: { url: o$1, properties: v$1, headers: v$1 }, [G]: h$1 },
+            ],
+            [G]: j$1,
+        },
+        {
+            conditions: [p$1],
+            rules: [
+                {
+                    conditions: [r$1],
+                    rules: [
+                        {
+                            conditions: [x$1, y],
+                            rules: [
+                                {
+                                    conditions: [{ [H]: c$1, [I]: [b$1, z] }, B],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://sts-fips.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: v$1,
+                                                headers: v$1,
+                                            },
+                                            [G]: h$1,
+                                        },
+                                    ],
+                                    [G]: j$1,
+                                },
+                                { error: "FIPS and DualStack are enabled, but this partition does not support one or both", [G]: k$1 },
+                            ],
+                            [G]: j$1,
+                        },
+                        {
+                            conditions: D,
+                            rules: [
+                                {
+                                    conditions: [{ [H]: c$1, [I]: [z, b$1] }],
+                                    rules: [
+                                        {
+                                            conditions: [{ [H]: d$1, [I]: [{ [H]: l$1, [I]: [A, "name"] }, "aws-us-gov"] }],
+                                            endpoint: { url: "https://sts.{Region}.amazonaws.com", properties: v$1, headers: v$1 },
+                                            [G]: h$1,
+                                        },
+                                        {
+                                            endpoint: {
+                                                url: "https://sts-fips.{Region}.{PartitionResult#dnsSuffix}",
+                                                properties: v$1,
+                                                headers: v$1,
+                                            },
+                                            [G]: h$1,
+                                        },
+                                    ],
+                                    [G]: j$1,
+                                },
+                                { error: "FIPS is enabled but this partition does not support FIPS", [G]: k$1 },
+                            ],
+                            [G]: j$1,
+                        },
+                        {
+                            conditions: E,
+                            rules: [
+                                {
+                                    conditions: [B],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://sts.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: v$1,
+                                                headers: v$1,
+                                            },
+                                            [G]: h$1,
+                                        },
+                                    ],
+                                    [G]: j$1,
+                                },
+                                { error: "DualStack is enabled but this partition does not support DualStack", [G]: k$1 },
+                            ],
+                            [G]: j$1,
+                        },
+                        w$1,
+                        { endpoint: { url: i$1, properties: v$1, headers: v$1 }, [G]: h$1 },
+                    ],
+                    [G]: j$1,
+                },
+            ],
+            [G]: j$1,
+        },
+        { error: "Invalid Configuration: Missing Region", [G]: k$1 },
+    ],
+};
 const ruleSet$1 = _data$1;
 
 const cache$1 = new EndpointCache({
@@ -45804,7 +45138,7 @@ const defaultEndpointResolver$1 = (endpointParams, context = {}) => {
         logger: context.logger,
     }));
 };
-customEndpointFunctions.aws = awsEndpointFunctions$1;
+customEndpointFunctions.aws = awsEndpointFunctions;
 
 class STSServiceException extends ServiceException {
     constructor(options) {
@@ -46142,7 +45476,7 @@ const getRuntimeConfig$2 = (config) => {
         authSchemePreference: config?.authSchemePreference ?? loadConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
         bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
         defaultUserAgentProvider: config?.defaultUserAgentProvider ??
-            createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo$1.version }),
+            createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
         httpAuthSchemes: config?.httpAuthSchemes ?? [
             {
                 schemeId: "aws.auth#sigv4",
@@ -46495,8 +45829,133 @@ const commonParams = {
 };
 
 const u = "required", v = "fn", w = "argv", x = "ref";
-const a = true, b = "isSet", c = "booleanEquals", d = "error", e = "endpoint", f = "tree", g = "PartitionResult", h = "stringEquals", i = { [u]: true, "default": false, "type": "boolean" }, j = { [u]: false, "type": "string" }, k = { [x]: "Endpoint" }, l = { [v]: c, [w]: [{ [x]: "UseFIPS" }, true] }, m = { [v]: c, [w]: [{ [x]: "UseDualStack" }, true] }, n = {}, o = { [v]: "getAttr", [w]: [{ [x]: g }, "name"] }, p = { [v]: c, [w]: [{ [x]: "UseFIPS" }, false] }, q = { [v]: c, [w]: [{ [x]: "UseDualStack" }, false] }, r = { [v]: "getAttr", [w]: [{ [x]: g }, "supportsFIPS"] }, s = { [v]: c, [w]: [true, { [v]: "getAttr", [w]: [{ [x]: g }, "supportsDualStack"] }] }, t = [{ [x]: "Region" }];
-const _data = { parameters: { UseDualStack: i, UseFIPS: i, Endpoint: j, Region: j }, rules: [{ conditions: [{ [v]: b, [w]: [k] }], rules: [{ conditions: [l], error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d }, { rules: [{ conditions: [m], error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d }, { endpoint: { url: k, properties: n, headers: n }, type: e }], type: f }], type: f }, { rules: [{ conditions: [{ [v]: b, [w]: t }], rules: [{ conditions: [{ [v]: "aws.partition", [w]: t, assign: g }], rules: [{ conditions: [{ [v]: h, [w]: [o, "aws"] }, p, q], endpoint: { url: "https://{Region}.signin.aws.amazon.com", properties: n, headers: n }, type: e }, { conditions: [{ [v]: h, [w]: [o, "aws-cn"] }, p, q], endpoint: { url: "https://{Region}.signin.amazonaws.cn", properties: n, headers: n }, type: e }, { conditions: [{ [v]: h, [w]: [o, "aws-us-gov"] }, p, q], endpoint: { url: "https://{Region}.signin.amazonaws-us-gov.com", properties: n, headers: n }, type: e }, { conditions: [l, m], rules: [{ conditions: [{ [v]: c, [w]: [a, r] }, s], rules: [{ endpoint: { url: "https://signin-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d }], type: f }, { conditions: [l, q], rules: [{ conditions: [{ [v]: c, [w]: [r, a] }], rules: [{ endpoint: { url: "https://signin-fips.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "FIPS is enabled but this partition does not support FIPS", type: d }], type: f }, { conditions: [p, m], rules: [{ conditions: [s], rules: [{ endpoint: { url: "https://signin.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "DualStack is enabled but this partition does not support DualStack", type: d }], type: f }, { endpoint: { url: "https://signin.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n }, type: e }], type: f }], type: f }, { error: "Invalid Configuration: Missing Region", type: d }], type: f }] };
+const a = true, b = "isSet", c = "booleanEquals", d = "error", e = "endpoint", f = "tree", g = "PartitionResult", h = "stringEquals", i = { [u]: true, default: false, type: "boolean" }, j = { [u]: false, type: "string" }, k = { [x]: "Endpoint" }, l = { [v]: c, [w]: [{ [x]: "UseFIPS" }, true] }, m = { [v]: c, [w]: [{ [x]: "UseDualStack" }, true] }, n = {}, o = { [v]: "getAttr", [w]: [{ [x]: g }, "name"] }, p = { [v]: c, [w]: [{ [x]: "UseFIPS" }, false] }, q = { [v]: c, [w]: [{ [x]: "UseDualStack" }, false] }, r = { [v]: "getAttr", [w]: [{ [x]: g }, "supportsFIPS"] }, s = { [v]: c, [w]: [true, { [v]: "getAttr", [w]: [{ [x]: g }, "supportsDualStack"] }] }, t = [{ [x]: "Region" }];
+const _data = {
+    parameters: { UseDualStack: i, UseFIPS: i, Endpoint: j, Region: j },
+    rules: [
+        {
+            conditions: [{ [v]: b, [w]: [k] }],
+            rules: [
+                { conditions: [l], error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d },
+                {
+                    rules: [
+                        {
+                            conditions: [m],
+                            error: "Invalid Configuration: Dualstack and custom endpoint are not supported",
+                            type: d,
+                        },
+                        { endpoint: { url: k, properties: n, headers: n }, type: e },
+                    ],
+                    type: f,
+                },
+            ],
+            type: f,
+        },
+        {
+            rules: [
+                {
+                    conditions: [{ [v]: b, [w]: t }],
+                    rules: [
+                        {
+                            conditions: [{ [v]: "aws.partition", [w]: t, assign: g }],
+                            rules: [
+                                {
+                                    conditions: [{ [v]: h, [w]: [o, "aws"] }, p, q],
+                                    endpoint: { url: "https://{Region}.signin.aws.amazon.com", properties: n, headers: n },
+                                    type: e,
+                                },
+                                {
+                                    conditions: [{ [v]: h, [w]: [o, "aws-cn"] }, p, q],
+                                    endpoint: { url: "https://{Region}.signin.amazonaws.cn", properties: n, headers: n },
+                                    type: e,
+                                },
+                                {
+                                    conditions: [{ [v]: h, [w]: [o, "aws-us-gov"] }, p, q],
+                                    endpoint: { url: "https://{Region}.signin.amazonaws-us-gov.com", properties: n, headers: n },
+                                    type: e,
+                                },
+                                {
+                                    conditions: [l, m],
+                                    rules: [
+                                        {
+                                            conditions: [{ [v]: c, [w]: [a, r] }, s],
+                                            rules: [
+                                                {
+                                                    endpoint: {
+                                                        url: "https://signin-fips.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                        properties: n,
+                                                        headers: n,
+                                                    },
+                                                    type: e,
+                                                },
+                                            ],
+                                            type: f,
+                                        },
+                                        {
+                                            error: "FIPS and DualStack are enabled, but this partition does not support one or both",
+                                            type: d,
+                                        },
+                                    ],
+                                    type: f,
+                                },
+                                {
+                                    conditions: [l, q],
+                                    rules: [
+                                        {
+                                            conditions: [{ [v]: c, [w]: [r, a] }],
+                                            rules: [
+                                                {
+                                                    endpoint: {
+                                                        url: "https://signin-fips.{Region}.{PartitionResult#dnsSuffix}",
+                                                        properties: n,
+                                                        headers: n,
+                                                    },
+                                                    type: e,
+                                                },
+                                            ],
+                                            type: f,
+                                        },
+                                        { error: "FIPS is enabled but this partition does not support FIPS", type: d },
+                                    ],
+                                    type: f,
+                                },
+                                {
+                                    conditions: [p, m],
+                                    rules: [
+                                        {
+                                            conditions: [s],
+                                            rules: [
+                                                {
+                                                    endpoint: {
+                                                        url: "https://signin.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                        properties: n,
+                                                        headers: n,
+                                                    },
+                                                    type: e,
+                                                },
+                                            ],
+                                            type: f,
+                                        },
+                                        { error: "DualStack is enabled but this partition does not support DualStack", type: d },
+                                    ],
+                                    type: f,
+                                },
+                                {
+                                    endpoint: { url: "https://signin.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n },
+                                    type: e,
+                                },
+                            ],
+                            type: f,
+                        },
+                    ],
+                    type: f,
+                },
+                { error: "Invalid Configuration: Missing Region", type: d },
+            ],
+            type: f,
+        },
+    ],
+};
 const ruleSet = _data;
 
 const cache = new EndpointCache({
@@ -46509,7 +45968,7 @@ const defaultEndpointResolver = (endpointParams, context = {}) => {
         logger: context.logger,
     }));
 };
-customEndpointFunctions.aws = awsEndpointFunctions$1;
+customEndpointFunctions.aws = awsEndpointFunctions;
 
 class SigninServiceException extends ServiceException {
     constructor(options) {
@@ -46749,7 +46208,7 @@ const getRuntimeConfig = (config) => {
         authSchemePreference: config?.authSchemePreference ?? loadConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
         bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
         defaultUserAgentProvider: config?.defaultUserAgentProvider ??
-            createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo$1.version }),
+            createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
         maxAttempts: config?.maxAttempts ?? loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
         region: config?.region ??
             loadConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),

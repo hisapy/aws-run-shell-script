@@ -32,7 +32,7 @@ Prerequisites:
   attached to the instance, e.g.,
   `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore`
 
-Then in your GitHub Actions workflow:
+Then in your GitHub Actions workflow, for example, you could use it like:
 
 ```yaml
 name: Deploy
@@ -55,11 +55,33 @@ jobs:
         uses: hisapy/aws-run-shell-script@v0.0.1
         with:
           instance_id: ${{ inputs.instance_id }}
-          user: 'ec2-user'
-          command: 'cd ~/webapp && git pull origin main'
+          working_directory: /home/ec2-user/webapp
+          command: 'git pull origin main'
           comment: 'Git pull repository'
-      - name: Check previous command status
-        run: echo ${{ steps.send.outputs.command_id }}
+
+      - name: Precompile assets
+        uses: hisapy/aws-run-shell-script@v0.0.1
+        with:
+          instance_id: ${{ inputs.instance_id }}
+          working_directory: /home/ec2-user/webapp
+          command: RAILS_ENV=production bin/rake assets:precompile
+          comment: Precompile Rails assets
+          timeout: 180 # This step takes longer
+
+      - name: (Re)start the webapp service
+        uses: hisapy/aws-run-shell-script@v0.0.1
+        with:
+          instance_id: ${{ inputs.instance_id }}
+          user: root
+          command: systemctl restart webapp
+          comment: Restart the webapp service
+
+      - name: Verify Rails server is running
+        uses: hisapy/aws-run-shell-script@v0.0.1
+        with:
+          instance_id: ${{ inputs.instance_id }}
+          command: systemctl is-active webapp
+          comment: Verify Rails server is running
 ```
 
 ## Development

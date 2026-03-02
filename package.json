@@ -1,17 +1,17 @@
 {
-  "name": "typescript-action",
+  "name": "aws-run-shell-script",
   "description": "GitHub Action to run a command on an EC2 instance with AWS SSM",
   "version": "0.0.1",
   "author": "",
   "type": "module",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/hisapy/aws-run-shell-script",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/hisapy/aws-run-shell-script.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/hisapy/aws-run-shell-script/issues"
   },
   "keywords": [
     "actions"

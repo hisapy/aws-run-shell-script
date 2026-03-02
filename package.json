@@ -36,6 +36,9 @@
     "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
   },
   "license": "MIT",
+  "overrides": {
+    "fast-xml-parser": "5.3.8"
+  },
   "dependencies": {
     "@actions/core": "^3.0.0",
     "@aws-sdk/client-ssm": "^3.893.0"

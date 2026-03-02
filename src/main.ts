@@ -1,27 +1,182 @@
 import * as core from '@actions/core'
-import { wait } from './wait.js'
 
 /**
  * The main function for the action.
  *
  * @returns Resolves when the action is complete.
  */
+import {
+  GetCommandInvocationCommand,
+  SSMClient,
+  SendCommandCommand,
+  Command
+} from '@aws-sdk/client-ssm'
+
+interface Inputs {
+  instanceId: string
+  workingDirectory: string
+  command: string
+  comment: string
+  user: string
+  timeoutSeconds: number
+}
+
+interface Outputs {
+  commandId: string
+  commandStatus: string
+  commandOutput?: string
+}
+
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
+    const inputs: Inputs = {
+      instanceId: core.getInput('instance_id', { required: true }),
+      workingDirectory: core.getInput('working_directory'),
+      command: core.getInput('command', { required: true }),
+      comment: core.getInput('comment'),
+      user: core.getInput('user'),
+      timeoutSeconds: parseTimeout(
+        core.getInput('timeout'),
+        core.getBooleanInput('wait_for_result')
+      )
+    }
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+    const client = new SSMClient()
+    const command = await runShellScript(inputs, client)
+    const outputs = await waitForResult(command!, client, inputs.timeoutSeconds)
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    core.setOutput('command_id', outputs.commandId)
+    core.setOutput('command_status', outputs.commandStatus)
+    core.setOutput('command_output', outputs.commandOutput)
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
+    return
   } catch (error) {
-    // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)
   }
+}
+
+function parseTimeout(
+  timeoutRaw: string = '120',
+  waitForResult: boolean = true
+): number {
+  if (!waitForResult) {
+    return 0
+  }
+  const timeoutSeconds = Number.parseInt(timeoutRaw, 10)
+
+  if (timeoutSeconds < 1) {
+    throw new Error('timeout must be a positive integer')
+  }
+
+  return timeoutSeconds
+}
+
+async function runShellScript(
+  input: Inputs,
+  client: SSMClient
+): Promise<Command | undefined> {
+  const command = escapeSingleQuotes(input.command)
+  const response = await client.send(
+    new SendCommandCommand({
+      DocumentName: 'AWS-RunShellScript',
+      InstanceIds: [input.instanceId],
+      TimeoutSeconds: input.timeoutSeconds,
+      Comment: input.comment,
+      Parameters: {
+        commands: [`sudo -u ${input.user} bash -lc '${command}'`],
+        workingDirectory: [input.workingDirectory]
+      }
+    })
+  )
+
+  core.debug(
+    `SSM send command response: ${JSON.stringify(response.Command, null, 2)}`
+  )
+
+  if (response.Command?.CommandId === undefined) {
+    throw new Error('Failed to get command ID from SSM response')
+  }
+
+  return response.Command
+}
+
+const TERMINAL_STATUS = new Set<string>([
+  'Success',
+  'Delivery Timed Out',
+  'Execution Timed Out',
+  'Failed',
+  'Cancelled',
+  'Undeliverable',
+  'Terminated'
+])
+
+async function waitForResult(
+  command: Command,
+  client: SSMClient,
+  timeoutSeconds: number
+): Promise<Outputs> {
+  const commandId = command.CommandId!
+  const instanceId = (command.InstanceIds as string[] | undefined)?.[0]
+
+  if (!instanceId) {
+    throw new Error('InstanceId is required to wait for result')
+  }
+
+  if (timeoutSeconds < 1) {
+    return {
+      commandId,
+      commandStatus: command.Status ?? 'Pending'
+    }
+  }
+
+  const startedAt = Date.now()
+  const timeoutMs = timeoutSeconds * 1000
+  let delayMs = 1000
+
+  // Start with a delay to avoid possible InvocationDoesNotExist error when
+  // checking status immediately after sending command
+  await sleep(delayMs)
+  while (Date.now() - startedAt < timeoutMs) {
+    const response = await client.send(
+      new GetCommandInvocationCommand({
+        CommandId: commandId,
+        InstanceId: instanceId
+      })
+    )
+
+    const statusDetails = response.StatusDetails ?? 'Pending'
+
+    if (statusDetails == 'Success') {
+      core.info(response.StandardOutputContent ?? '')
+
+      return {
+        commandId,
+        commandStatus: statusDetails,
+        commandOutput: response.StandardOutputContent
+      }
+    } else if (TERMINAL_STATUS.has(statusDetails)) {
+      core.debug(
+        `Command output: ${JSON.stringify(response.StandardOutputContent, null, 2)}`
+      )
+      throw new Error(
+        `Command ${commandId} finished with non-success status: ${statusDetails}.\nOutput: ${response.StandardErrorContent}`
+      )
+    }
+
+    // Exponential backoff with a max delay of 10 seconds
+    await sleep(Math.min(delayMs, 10_000))
+    delayMs *= 2
+  }
+
+  throw new Error(
+    `Timed out after ${timeoutSeconds}s waiting for command ${commandId} to reach a terminal status`
+  )
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function escapeSingleQuotes(command: string): string {
+  return command.replace(/'/g, "'\\''")
 }

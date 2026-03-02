@@ -1,17 +1,17 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
+  "name": "aws-run-shell-script",
+  "description": "GitHub Action to run a command on an EC2 instance with AWS SSM",
+  "version": "0.0.1",
   "author": "",
   "type": "module",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/hisapy/aws-run-shell-script",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/hisapy/aws-run-shell-script.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/hisapy/aws-run-shell-script/issues"
   },
   "keywords": [
     "actions"
@@ -36,14 +36,19 @@
     "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
   },
   "license": "MIT",
+  "overrides": {
+    "fast-xml-parser": "5.3.8"
+  },
   "dependencies": {
-    "@actions/core": "^3.0.0"
+    "@actions/core": "^3.0.0",
+    "@aws-sdk/client-ssm": "^3.893.0"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.1",
-    "@github/local-action": "^7.0.0",
+    "@github/local-action": "^5.2.0",
     "@jest/globals": "^30.2.0",
     "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/jest": "^30.0.0",
@@ -59,7 +64,7 @@
     "jest": "^30.2.0",
     "make-coverage-badge": "^1.2.0",
     "prettier": "^3.8.1",
-    "prettier-eslint": "^16.4.2",
+    "prettier-eslint": "^16.3.0",
     "rollup": "^4.56.0",
     "ts-jest": "^29.4.6",
     "ts-jest-resolver": "^2.0.1",
